@@ -190,12 +190,30 @@ int main(int argc, char** argv)
 
 		glEnable(GL_DEPTH_TEST);
 
-		/* fase di texturing */
-		//texture text;
-		//GLuint textID = text.load("/home/re/ComputerGrafica/common/carousel/grass_tile.png", 0);
-		//basic_shader.bind("texture1");
-		//glUniform1i(basic_shader["texture1"], 0);
+		/* fase di texturing terreno */
+		texture terrain_texture;
+		GLuint text0ID = terrain_texture.load("/home/re/ComputerGrafica/common/carousel/grass_tile.png", 0);
+		if (text0ID == 0) {
+			std::cerr << "Errore nel caricamento della texture del terreno" << std::endl;
+		} else {
+			std::cout << "Texture del terreno caricata correttamente" << std::endl;
+		}
 
+		basic_shader.bind("texture1");
+		glUniform1i(basic_shader["texture1"], 0);
+
+		/* fase di texturing track */
+		texture track_texture;
+		GLuint text1ID = track_texture.load("/home/re/ComputerGrafica/common/carousel/street_tile.png", 1);
+		if (text1ID == 0) {
+			std::cerr << "Errore nel caricamento della texture della pista" << std::endl;
+		} else {
+			std::cout << "Texture della pista caricata correttamente" << std::endl;
+		}
+		basic_shader.bind("texture2");
+		glUniform1i(basic_shader["texture2"], 1);
+
+		std::cout << "Number of indices (r_terrain.in): " << r_terrain.in << std::endl;	
 		/* Loop until the user closes the window */
 		while (!glfwWindowShouldClose(window))
 		{
@@ -231,8 +249,14 @@ int main(int argc, char** argv)
 			glDepthRange(0.01, 1);
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 			glUniform3f(basic_shader["uColor"], 1, 1, 1.0);
+
+
+			glActiveTexture(GL_TEXTURE0);  // Attiva la texture unit 0
+    		glBindTexture(GL_TEXTURE_2D, text0ID);  // Associa la texture
 			r_terrain.bind();
-			glDrawElements(GL_TRIANGLES, r_terrain.in, GL_UNSIGNED_INT, 0);
+			//glDrawArrays(GL_POINTS, 0, r_terrain.vn);		
+			// Debug dei vertici e degli indici
+			glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 			glDepthRange(0.0, 1);
 
 			for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
@@ -257,7 +281,9 @@ int main(int argc, char** argv)
 				stack.pop();
 			}
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-	
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, text1ID);
 			r_track.bind();
 			glPointSize(3.0);
 			glUniform3f(basic_shader["uColor"], 0.2f, 0.3f, 0.2f);
