@@ -232,7 +232,7 @@ int main(int argc, char** argv)
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 			glUniform3f(basic_shader["uColor"], 1, 1, 1.0);
 			r_terrain.bind();
-			glDrawElements(GL_TRIANGLES, r_terrain.vn, GL_UNSIGNED_INT, 0);
+			glDrawElements(GL_TRIANGLES, r_terrain.in, GL_UNSIGNED_INT, 0);
 			glDepthRange(0.0, 1);
 
 			for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
