@@ -18,3 +18,5 @@ riga 46 del carousel_loader: cercare di rendere buffer safe la funzione memcpy
 ->In main.cpp alla riga 255:
     ho cambiato da glDrawArray a glDrawElements, per sfruttare gli indici calcolati nella riga 81 del file carousel_to_renderable.h
 
+->Idea per migliorare il mapping della texture sulla pista:
+    rendere proporzionale al deltaX della curva, il fattore di ripetizione. L'idea e' che piu' il delta aumenta quindi piu' distanza copre il triangolo, piu' ripetezioni sono necessarie, al contrario il contrapposto. Inoltre questo fattore deve essere una frazione di un valore condiviso da tutte le ripetizioni in modo che sia tutto distribuito. 
