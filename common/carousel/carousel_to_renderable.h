@@ -18,14 +18,19 @@ struct game_to_renderable {
 		buffer_pos.resize(r.t().curbs[0].size() * 2 * 3); // Ogni punto ha due vertici (due lati della pista) e ciascun vertice ha 3 coordinate (x, y, z)
 		std::vector<float> uv_coords;
 		float total_distance = 0.0f;
+		std::vector<float> distances;
 
 		// Calcoliamo la distanza totale lungo la pista
 		for (unsigned int i = 1; i < r.t().curbs[0].size(); ++i) {
 			float dx = r.t().curbs[0][i].x - r.t().curbs[0][i-1].x;
 			float dy = r.t().curbs[0][i].y - r.t().curbs[0][i-1].y;
-			total_distance += sqrt(dx * dx + dy * dy);
+			// l'insieme di tutte le diagonali
+			float segment_distance = sqrt(dx * dx + dy * dy);
+			total_distance += segment_distance;
+			distances.push_back(total_distance);
 		}
-
+		// Lo ripeto per ogni coppia di vertici
+		float repeat_factor = 25.0f;
 		// Genera le coordinate della pista e le UV
 		for (unsigned int i = 0; i < r.t().curbs[0].size(); ++i) {
 			// Vertice sinistro
@@ -33,23 +38,14 @@ struct game_to_renderable {
 			// Vertice destro
 			ct(&buffer_pos[(2 * i + 1) * 3], r.t().curbs[1][i % r.t().curbs[1].size()]);
 
-			// Calcolare la distanza totale dalla pista per le coordinate UV
-			float distance_along_track = 0.0f;
-			if (i > 0) {
-				float dx = r.t().curbs[0][i].x - r.t().curbs[0][i-1].x;
-				float dy = r.t().curbs[0][i].y - r.t().curbs[0][i-1].y;
-				distance_along_track = total_distance - sqrt(dx * dx + dy * dy);
-			}
+			/* Qui normalizzo la distanza, piu' grande e' dx e piu' ripeto */
+			float v = (distances[i] / total_distance) * repeat_factor;
 
-			// Definiamo le coordinate UV basate sulla distanza lungo la pista (coordinate 'u') e larghezza costante (coordinate 'v')
-			float u = distance_along_track / total_distance;  // Normalizziamo la distanza lungo la pista tra 0 e 1
-			float v = 0.0f;  // Una semplice coordinata V, che può essere variata se la pista ha una larghezza variabile
+			uv_coords.push_back(0.0f);
+			uv_coords.push_back(v);
 
-			// Aggiungi le coordinate UV per entrambi i vertici del lato della pista
-			uv_coords.push_back(u);
-			uv_coords.push_back(v);  // Lato sinistro
-			uv_coords.push_back(u);
-			uv_coords.push_back(v);  // Lato destro
+			uv_coords.push_back(1.0f);
+			uv_coords.push_back(v);
 		}
 
 		// Aggiungi i dati dei vertici e delle UV al buffer
