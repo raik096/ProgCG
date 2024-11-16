@@ -48,16 +48,16 @@ float scaling_factor = 1.0;
 /* callback function called when the mouse is moving
 	vediamo di capirci qualcosa:
 	la funzione sotto mi serve per gestire il meccanismo si trackball e prende come argomento:
-	la posizione sull'asse x e quella sull'asse y, essendo il mouse sulla finestra non ha bisogno della 
+	la posizione sull'asse x e quella sull'asse y, essendo il mouse sulla finestra non ha bisogno della
 	coordinata z, a questo punto h come arogmento il puntatore alla finestra di rendering
 */
-static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos)
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	tb[curr_tb].mouse_move(proj, view, xpos, ypos);
 }
 
 /* callback function called when a mouse button is pressed */
-void mouse_button_callback(GLFWwindow * window, int button, int action, int mods)
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 
 	/* Qui ho implementato il premere la rotella */
@@ -70,7 +70,7 @@ void mouse_button_callback(GLFWwindow * window, int button, int action, int mods
 		if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE) {
 			tb[curr_tb].mouse_middle_release();
 		}
-	
+
 	/* Qui ho implementato il tasto sx che fa il semplice drag */
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
@@ -84,17 +84,17 @@ void mouse_button_callback(GLFWwindow * window, int button, int action, int mods
 		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
 			tb[curr_tb].mouse_sx_release();
 		}
- 
+
 }
 
 /* callback function called when a mouse wheel is rotated */
-void scroll_callback(GLFWwindow * window, double xoffset, double yoffset)
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	if (curr_tb == 0)
 		tb[0].mouse_scroll(xoffset, yoffset);
 }
 
-void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	/* every time any key is presse it switch from controlling trackball tb[0] to tb[1] and viceversa */
 	if (action == GLFW_PRESS)
 		curr_tb = 1 - curr_tb;
@@ -107,213 +107,210 @@ void key_callback(GLFWwindow * window, int key, int scancode, int action, int mo
 
 int main(int argc, char** argv)
 {
-		race r;
+	race r;
+
+	carousel_loader::load("small_test.svg", "terrain_256.png", r);
+
+	//add 10 cars
+	for (int i = 0; i < 10; ++i)
+		r.add_car();
+
+	GLFWwindow* window;
+
+	/* Initialize the library */
+	if (!glfwInit())
+		return -1;
+
+	/* Create a windowed mode window and its OpenGL context */
+	window = glfwCreateWindow(800, 800, "CarOusel", NULL, NULL);
+	if (!window)
+	{
+		glfwTerminate();
+		return -1;
+	}
+	/* declare the callback functions on mouse events */
+	if (glfwRawMouseMotionSupported())
+		glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetScrollCallback(window, scroll_callback);
+	glfwSetKeyCallback(window, key_callback);
+
+	/* Make the window's context current */
+	glfwMakeContextCurrent(window);
+
+	glewInit();
+
+	printout_opengl_glsl_info();
+
+	renderable fram = shape_maker::frame();
+
+	renderable r_cube = shape_maker::cube();
+
+	renderable r_track;
+	r_track.create();
+	game_to_renderable::to_track(r, r_track);
+
+	renderable r_terrain;
+	r_terrain.create();
+	game_to_renderable::to_heightfield(r, r_terrain);
+
+	renderable r_trees;
+	r_trees.create();
+	game_to_renderable::to_tree(r, r_trees);
+
+	renderable r_lamps;
+	r_lamps.create();
+	game_to_renderable::to_lamps(r, r_lamps);
+
+	shader basic_shader;
+	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
+
+	/* use the program shader "program_shader" */
+	glUseProgram(basic_shader.program);
+
+	/* define the viewport  */
+	glViewport(0, 0, 800, 800);
+
+	tb[0].reset();
+	tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
+	curr_tb = 0;
+
+	proj = glm::perspective(glm::radians(45.f), 1.f, 0.1f, 10.f);
+
+	view = glm::lookAt(glm::vec3(0, 1.f, 1.5), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
+	glUniformMatrix4fv(basic_shader["uProj"], 1, GL_FALSE, &proj[0][0]);
+	glUniformMatrix4fv(basic_shader["uView"], 1, GL_FALSE, &view[0][0]);
+
+	r.start(11, 0, 0, 600);
+	r.update();
+
+	matrix_stack stack;
+
+	glEnable(GL_DEPTH_TEST);
+
+	/* fase di texturing terreno */
+	texture terrain_texture;
+	GLuint text0ID = terrain_texture.load("common/carousel/grass_tile.png", 0);
+	if (text0ID == 0) {
+		std::cerr << "Errore nel caricamento della texture del terreno" << std::endl;
+	}
+	else {
+		std::cout << "Texture del terreno caricata correttamente" << std::endl;
+	}
+
+	basic_shader.bind("uTexture");
+	glUniform1i(basic_shader["uTexture"], 0);
+
+	/* fase di texturing track */
+	texture track_texture;
+	GLuint text1ID = track_texture.load("common/carousel/street_tile.png", 1);
+	if (text1ID == 0) {
+		std::cerr << "Errore nel caricamento della texture della pista" << std::endl;
+	}
+	else {
+		std::cout << "Texture della pista caricata correttamente" << std::endl;
+	}
+	basic_shader.bind("uTexture");
+	glUniform1i(basic_shader["uTexture"], 1);
+
+	std::cout << "Number of indices (r_terrain.in): " << r_terrain.in << std::endl;
+	/* Loop until the user closes the window */
+	while (!glfwWindowShouldClose(window))
+	{
+		/* Render here */
+		glClearColor(0.3f, 0.3f, 0.3f, 1.f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+		check_gl_errors(__LINE__, __FILE__);
 		
-		carousel_loader::load("small_test.svg", "terrain_256.png",r);
-		
-		//add 10 cars
-		for (int i = 0; i < 10; ++i)		
-			r.add_car();
-
-		GLFWwindow* window;
-
-		/* Initialize the library */
-		if (!glfwInit())
-			return -1;
-
-		/* Create a windowed mode window and its OpenGL context */
-		window = glfwCreateWindow(800, 800, "CarOusel", NULL, NULL);
-		if (!window)
-		{
-			glfwTerminate();
-			return -1;
-		}
-		/* declare the callback functions on mouse events */
-		if (glfwRawMouseMotionSupported())
-			glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-
-		glfwSetCursorPosCallback(window, cursor_position_callback);
-		glfwSetMouseButtonCallback(window, mouse_button_callback);
-		glfwSetScrollCallback(window, scroll_callback);
-		glfwSetKeyCallback(window, key_callback);
-
-		/* Make the window's context current */
-		glfwMakeContextCurrent(window);
-
-		glewInit();
-
-		printout_opengl_glsl_info();
-
-		renderable fram = shape_maker::frame();
-
-		renderable r_cube = shape_maker::cube();
-
-		renderable r_track;
-		r_track.create();
-		game_to_renderable::to_track(r, r_track);
-
-		renderable r_terrain;
-		r_terrain.create();
-		game_to_renderable::to_heightfield(r, r_terrain);
-		
-		renderable r_trees;
-		r_trees.create();
-		game_to_renderable::to_tree(r, r_trees);
-
-		renderable r_lamps;
-		r_lamps.create();
-		game_to_renderable::to_lamps(r, r_lamps);
-
-		shader basic_shader;
-		basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
-
-		/* use the program shader "program_shader" */
-		glUseProgram(basic_shader.program);
-
-		/* define the viewport  */
-		glViewport(0, 0, 800, 800);
-
-		tb[0].reset();
-		tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
-		curr_tb = 0;
-
-		proj = glm::perspective(glm::radians(45.f), 1.f, 1.f, 10.f);
-
-		view = glm::lookAt(glm::vec3(0, 1.f, 1.5), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
-		glUniformMatrix4fv(basic_shader["uProj"], 1, GL_FALSE, &proj[0][0]);
-		glUniformMatrix4fv(basic_shader["uView"], 1, GL_FALSE, &view[0][0]);
-
-		r.start(11,0,0,600);
 		r.update();
+		stack.load_identity();
+		stack.push();
+		stack.mult(tb[0].matrix());
+		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+		glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
+		fram.bind();
+		glDrawArrays(GL_LINES, 0, 6);
 
-		matrix_stack stack;
+		glColor3f(0, 0, 1);
+		glBegin(GL_LINES);
+		glVertex3f(0, 0, 0);
+		glVertex3f(r.sunlight_direction().x, r.sunlight_direction().y, r.sunlight_direction().z);
+		glEnd();
 
-		glEnable(GL_DEPTH_TEST);
 
-		/* fase di texturing terreno */
-		texture terrain_texture;
-		GLuint text0ID = terrain_texture.load("/home/re/ComputerGrafica/common/carousel/grass_tile.png", 0);
-		if (text0ID == 0) {
-			std::cerr << "Errore nel caricamento della texture del terreno" << std::endl;
-		} else {
-			std::cout << "Texture del terreno caricata correttamente" << std::endl;
-		}
+		float s = 1.f / r.bbox().diagonal();
+		glm::vec3 c = r.bbox().center();
 
-		basic_shader.bind("texture1");
-		glUniform1i(basic_shader["texture1"], 0);
+		stack.mult(glm::scale(glm::mat4(1.f), glm::vec3(s)));
+		stack.mult(glm::translate(glm::mat4(1.f), -c));
 
-		/* fase di texturing track */
-		texture track_texture;
-		GLuint text1ID = track_texture.load("/home/re/ComputerGrafica/common/carousel/street_tile.png", 1);
-		if (text1ID == 0) {
-			std::cerr << "Errore nel caricamento della texture della pista" << std::endl;
-		} else {
-			std::cout << "Texture della pista caricata correttamente" << std::endl;
-		}
-		basic_shader.bind("texture2");
-		glUniform1i(basic_shader["texture2"], 1);
 
-		std::cout << "Number of indices (r_terrain.in): " << r_terrain.in << std::endl;	
-		/* Loop until the user closes the window */
-		while (!glfwWindowShouldClose(window))
-		{
-			/* Render here */
-			glClearColor(0.3f, 0.3f, 0.3f, 1.f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		glDepthRange(0.01, 1);
+		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+		glUniform3f(basic_shader["uColor"], 1, 1, 1.0);
 
-			check_gl_errors(__LINE__, __FILE__);
+		glActiveTexture(GL_TEXTURE0);  // Attiva la texture unit 0
+		glBindTexture(GL_TEXTURE_2D, text0ID);  // Associa la texture
+		glUniform1i(basic_shader["uTexture"], 0);
+		r_terrain.bind();
+		//glDrawArrays(GL_POINTS, 0, r_terrain.vn);		
+		// Debug dei vertici e degli indici
+		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
+		glDepthRange(0.0, 1);
 
-			r.update();
-			stack.load_identity();
+		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
 			stack.push();
-			stack.mult(tb[0].matrix());
+			stack.mult(r.cars()[ic].frame);
+			stack.mult(glm::translate(glm::mat4(1.f), glm::vec3(0, 0.1, 0.0)));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 			glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
 			fram.bind();
 			glDrawArrays(GL_LINES, 0, 6);
-
-			glColor3f(0, 0, 1);
-			glBegin(GL_LINES);
-			glVertex3f(0, 0, 0);
-			glVertex3f(r.sunlight_direction().x, r.sunlight_direction().y, r.sunlight_direction().z);
-			glEnd();
-
-
-			float s = 1.f/r.bbox().diagonal();
-			glm::vec3 c = r.bbox().center();
-
-			stack.mult(glm::scale(glm::mat4(1.f), glm::vec3(s)));
-			stack.mult(glm::translate(glm::mat4(1.f), -c));
-
-			 
-			glDepthRange(0.01, 1);
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glUniform3f(basic_shader["uColor"], 1, 1, 1.0);
-
-
-			glActiveTexture(GL_TEXTURE0);  // Attiva la texture unit 0
-    		glBindTexture(GL_TEXTURE_2D, text0ID);  // Associa la texture
-			r_terrain.bind();
-			//glDrawArrays(GL_POINTS, 0, r_terrain.vn);		
-			// Debug dei vertici e degli indici
-			glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
-			glDepthRange(0.0, 1);
-
-			for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
-				stack.push();
-				stack.mult(r.cars()[ic].frame);
-				stack.mult(glm::translate(glm::mat4(1.f), glm::vec3(0,0.1,0.0)));
-				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-				glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
-				fram.bind();
-				glDrawArrays(GL_LINES, 0, 6);
-				stack.pop();
-			}
-
-			fram.bind();
-			for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
-				stack.push();
-				stack.mult(r.cameramen()[ic].frame);
-				stack.mult(glm::scale(glm::mat4(1.f), glm::vec3(4, 4,4)));
-				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-				glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
-				glDrawArrays(GL_LINES, 0, 6);
-				stack.pop();
-			}
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, text1ID);
-			r_track.bind();
-			glPointSize(3.0);
-			glUniform3f(basic_shader["uColor"], 0.2f, 0.3f, 0.2f);
-			glDrawArrays(GL_LINE_STRIP, 0, r_track.vn);
-			glPointSize(1.0);
-
-
-			r_trees.bind();
-			glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
-			glDrawArrays(GL_LINES, 0, r_trees.vn);
-
-
-			r_lamps.bind();
-			glUniform3f(basic_shader["uColor"], 1.f, 1.0f, 0.f);
-			glDrawArrays(GL_LINES, 0, r_lamps.vn);
-
-
-
-
 			stack.pop();
-			/* Swap front and back buffers */
-			glfwSwapBuffers(window);
-
-			/* Poll for and process events */
-			glfwPollEvents();
 		}
-		glUseProgram(0);
-		glfwTerminate();
-		return 0;
+
+		fram.bind();
+		for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
+			stack.push();
+			stack.mult(r.cameramen()[ic].frame);
+			stack.mult(glm::scale(glm::mat4(1.f), glm::vec3(4, 4, 4)));
+			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+			glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
+			glDrawArrays(GL_LINES, 0, 6);
+			stack.pop();
+		}
+		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, text1ID);
+		glUniform1i(basic_shader["uTexture"], 1);
+		r_track.bind();
+		glPointSize(3.0);
+		glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
+		glPointSize(1.0);
+
+		r_trees.bind();
+		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
+		glDrawArrays(GL_LINES, 0, r_trees.vn);
+
+		r_lamps.bind();
+		glUniform3f(basic_shader["uColor"], 1.f, 1.0f, 0.f);
+		glDrawArrays(GL_LINES, 0, r_lamps.vn);
+
+		stack.pop();
+
+		/* Swap front and back buffers */
+		glfwSwapBuffers(window);
+
+		/* Poll for and process events */
+		glfwPollEvents();
+	}
+	glUseProgram(0);
+	glfwTerminate();
+	return 0;
 }
 
-
- 
