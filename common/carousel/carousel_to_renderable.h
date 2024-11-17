@@ -41,7 +41,7 @@ struct game_to_renderable {
 			ct(&buffer_pos[(2 * i + 1) * 3], r.t().curbs[1][i % r.t().curbs[1].size()]);
 
 			/* Qui normalizzo la distanza, piu' grande e' dx e piu' ripeto */
-			float v = (distances[i]);
+			float v = (distances[i] / total_distance) * repeat_factor;
 
 			uv_coords.push_back(0.0f);
 			uv_coords.push_back(v);
