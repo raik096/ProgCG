@@ -12,14 +12,16 @@
 #include <GLFW/glfw3.h>
 #include <string>
 #include <iostream>
+
+#include "common/utilities.h"
+
 #include "common/debugging.h"
 #include "common/renderable.h"
 #include "common/shaders.h"
 #include "common/simple_shapes.h"
+#include "common/gltf_loader.h"
 #include "common/carousel/carousel.h"
 #include "common/carousel/carousel_to_renderable.h"
-
-
 
 #include "common/carousel/carousel_loader.h"
 
@@ -107,14 +109,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 int main(int argc, char** argv)
 {
-	race r;
-
-	carousel_loader::load("small_test.svg", "terrain_256.png", r);
-
-	//add 10 cars
-	for (int i = 0; i < 10; ++i)
-		r.add_car();
-
+	//Setuppiamo GLFW---------------------------------------------
 	GLFWwindow* window;
 
 	/* Initialize the library */
@@ -144,8 +139,22 @@ int main(int argc, char** argv)
 
 	printout_opengl_glsl_info();
 
-	renderable fram = shape_maker::frame();
+	//Setuppiamo OPENGL---------------------------------------------
+	/* define the viewport  */
+	glViewport(0, 0, 800, 800);
 
+	glEnable(GL_DEPTH_TEST);
+
+
+	//Setuppiamo il carosello---------------------------------------------
+	race r;
+	carousel_loader::load("small_test.svg", "terrain_256.png", r);
+
+	//add 10 cars
+	for (int i = 0; i < 10; ++i)
+		r.add_car();
+
+	renderable fram = shape_maker::frame();
 	renderable r_cube = shape_maker::cube();
 
 	renderable r_track;
@@ -160,9 +169,15 @@ int main(int argc, char** argv)
 	r_trees.create();
 	game_to_renderable::to_tree(r, r_trees);
 
-	renderable r_lamps;
-	r_lamps.create();
-	game_to_renderable::to_lamps(r, r_lamps);
+	//renderable r_lamps;
+	//r_lamps.create();
+	//game_to_renderable::to_lamps(r, r_lamps);
+
+	gltf_loader gltfLoader;
+
+	box3 bbox;
+	std::vector<renderable> lamp;
+	gltfLoader.load_to_renderable("assets/models/lamp.gltf", lamp, bbox);
 
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
@@ -170,51 +185,27 @@ int main(int argc, char** argv)
 	/* use the program shader "program_shader" */
 	glUseProgram(basic_shader.program);
 
-	/* define the viewport  */
-	glViewport(0, 0, 800, 800);
 
 	tb[0].reset();
 	tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
 	curr_tb = 0;
 
-	proj = glm::perspective(glm::radians(45.f), 1.f, 0.1f, 10.f);
-
+	proj = glm::perspective(glm::radians(45.f), 1.f, 0.1f, 100.f);
 	view = glm::lookAt(glm::vec3(0, 1.f, 1.5), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
-	glUniformMatrix4fv(basic_shader["uProj"], 1, GL_FALSE, &proj[0][0]);
-	glUniformMatrix4fv(basic_shader["uView"], 1, GL_FALSE, &view[0][0]);
+	basic_shader.SetMatrix4x4("uProj", proj);
+	basic_shader.SetMatrix4x4("uView", view);
 
 	r.start(11, 0, 0, 600);
 	r.update();
 
 	matrix_stack stack;
 
-	glEnable(GL_DEPTH_TEST);
-
 	/* fase di texturing terreno */
-	texture terrain_texture;
-	GLuint text0ID = terrain_texture.load("common/carousel/grass_tile.png", 0);
-	if (text0ID == 0) {
-		std::cerr << "Errore nel caricamento della texture del terreno" << std::endl;
-	}
-	else {
-		std::cout << "Texture del terreno caricata correttamente" << std::endl;
-	}
-
-	basic_shader.bind("uTexture");
-	glUniform1i(basic_shader["uTexture"], 0);
+	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 
 	/* fase di texturing track */
-	texture track_texture;
-	GLuint text1ID = track_texture.load("common/carousel/street_tile.png", 1);
-	if (text1ID == 0) {
-		std::cerr << "Errore nel caricamento della texture della pista" << std::endl;
-	}
-	else {
-		std::cout << "Texture della pista caricata correttamente" << std::endl;
-	}
-	basic_shader.bind("uTexture");
-	glUniform1i(basic_shader["uTexture"], 1);
-
+	texture track_texture = LoadTexture("common/carousel/street_tile.png");
+	
 	std::cout << "Number of indices (r_terrain.in): " << r_terrain.in << std::endl;
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
@@ -222,9 +213,11 @@ int main(int argc, char** argv)
 		/* Render here */
 		glClearColor(0.3f, 0.3f, 0.3f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
 		check_gl_errors(__LINE__, __FILE__);
-		
+
+		//Aggiorna viewMatrix della camera
+		basic_shader.SetMatrix4x4("uView", view);
+
 		r.update();
 		stack.load_identity();
 		stack.push();
@@ -252,9 +245,7 @@ int main(int argc, char** argv)
 		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 		glUniform3f(basic_shader["uColor"], 1, 1, 1.0);
 
-		glActiveTexture(GL_TEXTURE0);  // Attiva la texture unit 0
-		glBindTexture(GL_TEXTURE_2D, text0ID);  // Associa la texture
-		glUniform1i(basic_shader["uTexture"], 0);
+		BindTexture(basic_shader, "uTexture", terrain_texture, 0);
 		r_terrain.bind();
 		//glDrawArrays(GL_POINTS, 0, r_terrain.vn);		
 		// Debug dei vertici e degli indici
@@ -284,22 +275,29 @@ int main(int argc, char** argv)
 		}
 		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, text1ID);
-		glUniform1i(basic_shader["uTexture"], 1);
+		BindTexture(basic_shader, "uTexture", track_texture, 0);
 		r_track.bind();
 		glPointSize(3.0);
 		glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
 		glPointSize(1.0);
-
+		
 		r_trees.bind();
 		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
 		glDrawArrays(GL_LINES, 0, r_trees.vn);
+		
+		//Disegno i lampioni
+		lamp[0].bind();
+		for (stick_object l : r.lamps())
+		{
+			glm::mat4 model = glm::translate(glm::mat4(1), l.pos);
+			basic_shader.SetMatrix4x4("uModel", model);
+			glDrawArrays(GL_TRIANGLES, 0, lamp[0].vn);
+		}
 
-		r_lamps.bind();
-		glUniform3f(basic_shader["uColor"], 1.f, 1.0f, 0.f);
-		glDrawArrays(GL_LINES, 0, r_lamps.vn);
+		//r_lamps.bind();
+		//glUniform3f(basic_shader["uColor"], 1.f, 1.0f, 0.f);
+		//glDrawArrays(GL_LINES, 0, r_lamps.vn);
 
 		stack.pop();
 
@@ -309,6 +307,7 @@ int main(int argc, char** argv)
 		/* Poll for and process events */
 		glfwPollEvents();
 	}
+
 	glUseProgram(0);
 	glfwTerminate();
 	return 0;

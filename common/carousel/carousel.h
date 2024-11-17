@@ -12,7 +12,7 @@ struct carousel_loader;
 class race;
 
 struct point_object {
-	point_object():pos(0.f) {}
+	point_object() : pos(0.f) {}
 	glm::vec3 pos;
 };
 

@@ -29,8 +29,10 @@ struct game_to_renderable {
 			total_distance += segment_distance;
 			distances.push_back(total_distance);
 		}
+		
 		// Lo ripeto per ogni coppia di vertici
 		float repeat_factor = 25.0f;
+
 		// Genera le coordinate della pista e le UV
 		for (unsigned int i = 0; i < r.t().curbs[0].size(); ++i) {
 			// Vertice sinistro
@@ -39,7 +41,7 @@ struct game_to_renderable {
 			ct(&buffer_pos[(2 * i + 1) * 3], r.t().curbs[1][i % r.t().curbs[1].size()]);
 
 			/* Qui normalizzo la distanza, piu' grande e' dx e piu' ripeto */
-			float v = (distances[i] / total_distance) * repeat_factor;
+			float v = (distances[i]);
 
 			uv_coords.push_back(0.0f);
 			uv_coords.push_back(v);

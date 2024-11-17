@@ -1,6 +1,7 @@
 ﻿#ifndef MATERIAL_shad_H
 #define MATERIAL_shad_H
 #include <GL/glew.h>
+#include <glm/glm.hpp>
 #include <stdio.h>
 #include <string>
 #include <sstream>
@@ -24,12 +25,48 @@ struct shader{
 		}
 		
 		int operator[](std::string name){
+
+			//Se non abbiamo mai cachato l'id della uniform...
 			if (uni.find(name) == uni.end()) {
+				
+				//Prova a cercarla nella shader
+				int uniformLocation = uni[name] = glGetUniformLocation(program, name.c_str());
+				if(uniformLocation != -1)
+				{
+					//Se la trovi fai il bind e ritorna
+            		uni[name] = glGetUniformLocation(program, name.c_str());
+					return uni[name];
+				}
+
+				//Se no dai errore
 				std::cout << "No location for uniform variable " << name << std::endl;
 				exit(0);
 			}
+
+			//Se l'avevamo già cachata restituisci ebbasta
             return uni[name];
         }
+
+		void SetInt(std::string uName, int value)
+		{
+			glUniform1i(uni[uName], value);
+		}
+
+		void SetFloat(std::string uName, float value)
+		{
+			glUniform1f(uni[uName], value);
+		}
+
+		void SetVector3(std::string uName, glm::vec3 value)
+		{
+			glUniform3f(uni[uName], value.x, value.y, value.z);
+		}
+
+		void SetMatrix4x4(std::string uName, glm::mat4 value)
+		{
+			glUniformMatrix4fv(uni[uName], 1, GL_FALSE, &value[0][0]);
+		}
+
 #if defined(GL_VERSION_4_3)
 		void  create_program(const GLchar* nameC) {
 			std::string compute_shader_src_code = textFileRead(nameC);

@@ -1,7 +1,8 @@
 #ifndef MATERIAL_gltf_H
 #define MATERIAL_gltf_H
 
-#include <tinygltf/tiny_gltf.h>
+#include <tiny_gltf.h>
+#include <string.h>
 
 
 #include "texture.h"
@@ -195,7 +196,7 @@ struct gltf_loader {
 				// setup the material
 				tinygltf::Material mat = model.materials[primitive.material];
 				int index;
-
+				
 				memcpy_s(r.mater.base_color_factor,sizeof(double)*4,&mat.pbrMetallicRoughness.baseColorFactor[0], sizeof(double) * 4);
 				
 				index = mat.pbrMetallicRoughness.baseColorTexture.index;
@@ -206,6 +207,7 @@ struct gltf_loader {
 
 				index = mat.emissiveTexture.index;
 				r.mater.emissive_texture = (index != -1) ? this->id_textures[index] : -1;
+				
 			}
 		}
 		if (!model.nodes[i_node].children.empty()) {
