@@ -2,7 +2,7 @@
 Il progetto di computer grafica
 
 ///CAMBIAMENTI
-
+```
 int memcpy_s(void *dest, size_t destsz, const void *src, size_t count) {
     if (dest == NULL || src == NULL || destsz < count) {
         return -1;  // Errore
@@ -11,7 +11,7 @@ int memcpy_s(void *dest, size_t destsz, const void *src, size_t count) {
     memcpy(dest, src, count);
     return 0;
 }
-
+```
 
 ->In main.cpp riga 61 e riga 67:
     spostamento con virtual trackball al centro con il premere della rotella invece che con il tasto sx del mouse quindi button = GLFW_MOUSE_BUTTON_MIDDLE invece di         GLFW_MOUSE_BUTTON_LEFT.
