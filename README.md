@@ -3,8 +3,16 @@ Il progetto di computer grafica
 
 ///CAMBIAMENTI
 
-POSTUMO:
-riga 46 del carousel_loader: cercare di rendere buffer safe la funzione memcpy
+int memcpy_s(void *dest, size_t destsz, const void *src, size_t count) {
+    if (dest == NULL || src == NULL || destsz < count) {
+        return -1;  // Errore
+    }
+
+    // Se i controlli sono superati faccio il memcpy
+    memcpy(dest, src, count);
+    
+    return 0;
+}
 
 
 ->In main.cpp riga 61 e riga 67:
