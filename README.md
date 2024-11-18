@@ -7,10 +7,8 @@ int memcpy_s(void *dest, size_t destsz, const void *src, size_t count) {
     if (dest == NULL || src == NULL || destsz < count) {
         return -1;  // Errore
     }
-
     // Se i controlli sono superati faccio il memcpy
     memcpy(dest, src, count);
-    
     return 0;
 }
 
