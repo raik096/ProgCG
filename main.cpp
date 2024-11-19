@@ -3,35 +3,38 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "3dparty/nanosvg/src/nanosvgrast.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "3dparty/stb_image.h"
-#include "3dparty/stb_image_write.h"
+#include "common/texture.h"
 
-#include <GL/glew.h>
+
+// Include OpenGL-related libraries
+#include <GL/glew.h>      // Always first for OpenGL
 #include <GLFW/glfw3.h>
+
+// Standard library includes
 #include <string>
 #include <iostream>
 
-#include "common/utilities.h"
+#include <algorithm>
+#include <sys/stat.h>
+#include "common/gltf_loader.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "3dparty/tinygltf/stb_image.h"
+#include "3dparty/tinygltf/stb_image_write.h"
+
+// Project-specific headers
+#include "common/utilities.h"
 #include "common/debugging.h"
 #include "common/renderable.h"
 #include "common/shaders.h"
 #include "common/simple_shapes.h"
-#include "common/gltf_loader.h"
 #include "common/carousel/carousel.h"
 #include "common/carousel/carousel_to_renderable.h"
-
 #include "common/carousel/carousel_loader.h"
-
-#include <sys/stat.h>
-#include <iostream>
-#include <algorithm>
 #include "common/matrix_stack.h"
 #include "common/intersection.h"
 #include "common/trackball.h"
-#include "common/texture.h"
 
 /* creo un array di due oggetti di tipo trackball e curr_tb mi tiene traccia dell'indice attivo tralle due tb*/
 trackball tb[2];
