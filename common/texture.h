@@ -2,6 +2,9 @@
 #define MATERIAL_tex_H
 #include <GL/glew.h>
 #include <string>
+#include <assert.h>
+#include "../3dparty/tinygltf/stb_image.h"
+#include "../3dparty/tinygltf/stb_image_write.h"
 
 struct texture {
 	texture() { }
@@ -19,7 +22,7 @@ struct texture {
 	GLuint load(std::string name, GLuint tu) {
 		unsigned char * data;
 		data = stbi_load(name.c_str(), &x_size, &y_size, &n_components, 0);
-		stbi__vertical_flip(data, x_size, y_size, n_components);
+		//stbi__vertical_flip(data, x_size, y_size, n_components);
 		/* mi serve per attivare la texture sull'unita' specificata */
 		glActiveTexture(GL_TEXTURE0 + tu);
 		glGenTextures(1, &id);
