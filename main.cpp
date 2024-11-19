@@ -179,15 +179,21 @@ int main(int argc, char** argv)
 	gltf_loader gltfLoader;
 
 	box3 bbox;
-	std::vector<renderable> lamp;
-	gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp, bbox);
+	std::vector<renderable> obj;
+	try {
+        gltfLoader.load_to_renderable("/home/re/ProgCG/assets/models/lamp.glb", obj, bbox);
+        std::cout << "Model loaded successfully!" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading model: " << e.what() << std::endl;
+        glfwTerminate();
+        return -1;
+    }
 
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
 
 	/* use the program shader "program_shader" */
 	glUseProgram(basic_shader.program);
-
 
 	tb[0].reset();
 	tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
@@ -203,14 +209,9 @@ int main(int argc, char** argv)
 
 	matrix_stack stack;
 
-	/* fase di texturing terreno */
 	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
-
-	/* fase di texturing track */
 	texture track_texture = LoadTexture("common/carousel/street_tile.png");
 	
-	std::cout << "Number of indices (r_terrain.in): " << r_terrain.in << std::endl;
-	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
 	{
 		/* Render here */
@@ -289,17 +290,45 @@ int main(int argc, char** argv)
 		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
 		glDrawArrays(GL_LINES, 0, r_trees.vn);
 		
-		//Disegno i lampioni
-		lamp[0].bind();
+		//Disegno i lampioni		
+		obj[0].bind();
 		for (stick_object l : r.lamps())
 		{
-			glm::mat4 model = glm::translate(glm::mat4(1), l.pos);
-			basic_shader.SetMatrix4x4("uModel", model);
-			glDrawArrays(GL_TRIANGLES, 0, lamp[0].vn);
-		}
+			std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
+			stack.push();
+			// Trasla la matrice 
+			// Crea una matrice di trasformazione combinata: traslazione + trasformazione base
+			stack.mult(obj[0].transform * glm::translate(glm::mat4(1), l.pos)); // Applica la trasformazione base del modello GLB
 
+			//glm::mat4 model = stack.m() * glm::translate(glm::mat4(1), l.pos);
+			std::cout << "Matrice trasformazione: " << glm::to_string(stack.m()) << std::endl;
+
+			// Passa la matrice combinata allo shader
+			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+
+			// Imposta il colore del lampione
+			glUniform3f(basic_shader["uColor"], 0.0f, 0.0f, 0.0f);
+
+			// Renderizza l'oggetto
+			glDrawElements(obj[0]().mode, obj[0]().count, obj[0]().itype, 0);
+
+			stack.pop(); // Ripristina lo stato precedente
+		}
+						
+		/* metodo funzionale nel rendering di almeno un lampione
+		obj[0].bind();
+		for (stick_object l : r.lamps())
+		{
+			stack.push();
+			stack.mult(obj[0].transform);
+			//glm::mat4 model = glm::translate(glm::mat4(1), l.pos);
+			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+			glUniform3f(basic_shader["uColor"], 0.0f, 0.0f, 0.0f);
+			glDrawElements(obj[0]().mode, obj[0]().count, obj[0]().itype, 0);
+			stack.pop();
+		}
+		*/
 		//r_lamps.bind();
-		//glUniform3f(basic_shader["uColor"], 1.f, 1.0f, 0.f);
 		//glDrawArrays(GL_LINES, 0, r_lamps.vn);
 
 		stack.pop();
