@@ -211,7 +211,7 @@ int main(int argc, char** argv)
 	basic_shader.SetMatrix4x4("uProj", proj);
 	basic_shader.SetMatrix4x4("uView", view);
 
-	r.start(11, 0, 0, 600);
+	r.start(11, 0, 0, 300);
 	r.update();
 
 	matrix_stack stack;
@@ -230,7 +230,12 @@ int main(int argc, char** argv)
 		basic_shader.SetMatrix4x4("uProj", proj);
 		basic_shader.SetMatrix4x4("uView", view);
 
+		//Aggiorna carosello
 		r.update();
+
+		//Aggiorna informazioni sulla scena
+		basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
+
 		stack.load_identity();
 		stack.push();
 		stack.mult(tb[0].matrix());
@@ -302,21 +307,20 @@ int main(int argc, char** argv)
 		obj[0].bind();
 		for (stick_object l : r.lamps())
 		{
-			std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
 			stack.push();
 			// Trasla la matrice 
 			// Crea una matrice di trasformazione combinata: traslazione + trasformazione base
 			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1))); //Applica la trasformazione base del modello che scegliamo noi(in questo caso trasla di lpos e scala di 0.1)
 
 			//glm::mat4 model = stack.m() * glm::translate(glm::mat4(1), l.pos);
-			std::cout << "Matrice trasformazione: " << glm::to_string(stack.m()) << std::endl;
+			//std::cout << "Matrice trasformazione: " << glm::to_string(stack.m()) << std::endl;
 
 			// Passa la matrice combinata allo shader
 			//basic_shader.SetMatrix4x4("uModel", glm::translate(glm::mat4(1), l.pos));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 
 			// Imposta il colore del lampione
-			glUniform3f(basic_shader["uColor"], 0.0f, 0.0f, 0.0f);
+			glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
 
 			// Renderizza l'oggetto
 			glDrawElements(obj[0]().mode, obj[0]().count, obj[0]().itype, 0);

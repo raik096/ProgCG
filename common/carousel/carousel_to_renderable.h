@@ -74,8 +74,21 @@ struct game_to_renderable {
 		to_stick_object(r.lamps(), r_t);
 	}
 
+	static glm::vec3 hf_point(const race& r, int x, int z)
+	{
+		terrain ter = r.ter();
+		const unsigned int& Z =static_cast<unsigned int>(r.ter().size_pix[1]);
+		const unsigned int& X =static_cast<unsigned int>(r.ter().size_pix[0]);
 
+		glm::vec3 p = glm::vec3
+		(
+			ter.rect_xz[0] + (x / float(X)) * ter.rect_xz[2],
+			r.ter().hf(x, z),
+			ter.rect_xz[1] + (z / float(Z)) * ter.rect_xz[3]
+		);
 
+		return p;
+	}
 
 	static void to_heightfield(const race& r, renderable& r_hf) {
 		std::vector<unsigned int > buffer_id;
@@ -89,8 +102,34 @@ struct game_to_renderable {
 			for (unsigned int ix = 0; ix < X; ++ix) {
 				hf3d.push_back(ter.rect_xz[0] + (ix / float(X)) * ter.rect_xz[2]);
 				hf3d.push_back(r.ter().hf(ix, iz));
-				hf3d.push_back(ter.rect_xz[1] + (iz / float(Z)) * ter.rect_xz[3]);		
+				hf3d.push_back(ter.rect_xz[1] + (iz / float(Z)) * ter.rect_xz[3]);
 			
+			}
+		
+		std::vector<float>   normals;
+		for (unsigned int iz = 0; iz < Z; ++iz)
+			for (unsigned int ix = 0; ix < X; ++ix) {
+				
+				glm::vec3 p = hf_point(r, ix, iz);
+
+				glm::vec3 right = p + glm::vec3(1, 0, 0); 
+				glm::vec3 forward = p + glm::vec3(0, 0, 1);
+
+				if(iz < Z-1)
+				{
+					forward = hf_point(r, ix, iz+1);
+				}
+
+				if(ix < X-1)
+				{
+					right = hf_point(r, ix+1, iz);
+				}
+
+				glm::vec3 normal = glm::normalize(glm::cross((forward-p), (right-p)));
+
+				normals.push_back(normal.x);
+				normals.push_back(normal.y);
+				normals.push_back(normal.z);
 			}
 		
 		std::vector<float> uv_coords;
@@ -120,6 +159,7 @@ struct game_to_renderable {
 
 		std::cout << "buffer_id.size() = " << buffer_id.size() << std::endl;
 		r_hf.add_vertex_attribute<float>(&hf3d[0], X * Z * 3, 0, 3);
+		r_hf.add_vertex_attribute<float>(&normals[0],  X * Z * 3, 2, 3);
 		r_hf.add_vertex_attribute<float>(&uv_coords[0],  X * Z * 2, 4, 2);
 		r_hf.add_indices<unsigned int>(&buffer_id[0], static_cast<unsigned int>(buffer_id.size()), GL_TRIANGLES);        
 

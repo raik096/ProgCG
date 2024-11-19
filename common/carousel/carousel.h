@@ -128,7 +128,7 @@ struct  terrain {
 
  
 	/// given a 3D point, returns its orthogonal projection into the terrain (that is, along the y direction)
-	glm::vec3  p(glm::vec3 p_in) {
+	glm::vec3 p(glm::vec3 p_in) {
 		return glm::vec3(p_in.x, y(p_in.x, p_in.z), p_in.z);
 	}
 
