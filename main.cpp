@@ -306,7 +306,7 @@ int main(int argc, char** argv)
 			stack.push();
 			// Trasla la matrice 
 			// Crea una matrice di trasformazione combinata: traslazione + trasformazione base
-			stack.mult(glm::translate(glm::mat4(1), l.pos) * obj[0].transform); // Applica la trasformazione base del modello GLB
+			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1))); //Applica la trasformazione base del modello che scegliamo noi(in questo caso trasla di lpos e scala di 0.1)
 
 			//glm::mat4 model = stack.m() * glm::translate(glm::mat4(1), l.pos);
 			std::cout << "Matrice trasformazione: " << glm::to_string(stack.m()) << std::endl;
