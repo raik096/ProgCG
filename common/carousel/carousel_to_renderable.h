@@ -13,9 +13,28 @@ struct game_to_renderable {
 		dst[1] = src.y;
 		dst[2] = src.z;
 	}
+
+	static glm::vec3 hf_point(const race& r, int x, int z)
+	{
+		terrain ter = r.ter();
+		const unsigned int& Z =static_cast<unsigned int>(r.ter().size_pix[1]);
+		const unsigned int& X =static_cast<unsigned int>(r.ter().size_pix[0]);
+
+		glm::vec3 p = glm::vec3
+		(
+			ter.rect_xz[0] + (x / float(X)) * ter.rect_xz[2],
+			r.ter().hf(x, z),
+			ter.rect_xz[1] + (z / float(Z)) * ter.rect_xz[3]
+		);
+
+		return p;
+	}
+
 	static void to_track(const race& r, renderable& r_t) {
 		std::vector<float> buffer_pos;
+		std::vector<float> buffer_norm;
 		buffer_pos.resize(r.t().curbs[0].size() * 2 * 3); // Ogni punto ha due vertici (due lati della pista) e ciascun vertice ha 3 coordinate (x, y, z)
+		buffer_norm.resize(r.t().curbsNormals[0].size() * 2 * 3); 
 		std::vector<float> uv_coords;
 		float total_distance = 0.0f;
 		std::vector<float> distances;
@@ -40,6 +59,11 @@ struct game_to_renderable {
 			// Vertice destro
 			ct(&buffer_pos[(2 * i + 1) * 3], r.t().curbs[1][i % r.t().curbs[1].size()]);
 
+			// Vertice sinistro
+			ct(&buffer_norm[(2 * i) * 3], r.t().curbsNormals[0][i % r.t().curbsNormals[0].size()]);
+			// Vertice destro
+			ct(&buffer_norm[(2 * i + 1) * 3], r.t().curbsNormals[1][i % r.t().curbsNormals[1].size()]);
+
 			/* Qui normalizzo la distanza, piu' grande e' dx e piu' ripeto */
 			float v = (distances[i] / total_distance) * repeat_factor;
 
@@ -52,6 +76,7 @@ struct game_to_renderable {
 
 		// Aggiungi i dati dei vertici e delle UV al buffer
 		r_t.add_vertex_attribute<float>(&buffer_pos[0], static_cast<unsigned int>(buffer_pos.size()), 0, 3);
+		r_t.add_vertex_attribute<float>(&buffer_norm[0], static_cast<unsigned int>(buffer_norm.size()), 2, 3);
 		r_t.add_vertex_attribute<float>(&uv_coords[0], static_cast<unsigned int>(uv_coords.size()), 4, 2);
 	}
 
@@ -74,22 +99,6 @@ struct game_to_renderable {
 		to_stick_object(r.lamps(), r_t);
 	}
 
-	static glm::vec3 hf_point(const race& r, int x, int z)
-	{
-		terrain ter = r.ter();
-		const unsigned int& Z =static_cast<unsigned int>(r.ter().size_pix[1]);
-		const unsigned int& X =static_cast<unsigned int>(r.ter().size_pix[0]);
-
-		glm::vec3 p = glm::vec3
-		(
-			ter.rect_xz[0] + (x / float(X)) * ter.rect_xz[2],
-			r.ter().hf(x, z),
-			ter.rect_xz[1] + (z / float(Z)) * ter.rect_xz[3]
-		);
-
-		return p;
-	}
-
 	static void to_heightfield(const race& r, renderable& r_hf) {
 		std::vector<unsigned int > buffer_id;
 		const unsigned int& Z =static_cast<unsigned int>(r.ter().size_pix[1]);
@@ -108,7 +117,8 @@ struct game_to_renderable {
 		
 		std::vector<float>   normals;
 		for (unsigned int iz = 0; iz < Z; ++iz)
-			for (unsigned int ix = 0; ix < X; ++ix) {
+			for (unsigned int ix = 0; ix < X; ++ix)
+			{
 				
 				glm::vec3 p = hf_point(r, ix, iz);
 

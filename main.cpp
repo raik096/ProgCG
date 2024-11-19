@@ -218,6 +218,8 @@ int main(int argc, char** argv)
 
 	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 	texture track_texture = LoadTexture("common/carousel/street_tile.png");
+
+	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
 	
 	while (!glfwWindowShouldClose(window))
 	{
@@ -303,7 +305,8 @@ int main(int argc, char** argv)
 		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
 		glDrawArrays(GL_LINES, 0, r_trees.vn);
 		
-		//Disegno i lampioni		
+		//Disegno i lampioni
+		BindTexture(basic_shader, "uTexture", lamp_texture, 0);
 		obj[0].bind();
 		for (stick_object l : r.lamps())
 		{

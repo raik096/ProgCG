@@ -80,6 +80,9 @@ struct carousel_loader {
 						d = glm::normalize(d);
 						r._t.curbs[0].push_back(r._ter.p(samples_pos[i] + d * 2.f));
 						r._t.curbs[1].push_back(r._ter.p(samples_pos[i] - d * 2.f));
+
+						r._t.curbsNormals[0].push_back(r._ter.dtVec3(samples_pos[i] + d * 2.f));
+						r._t.curbsNormals[1].push_back(r._ter.dtVec3(samples_pos[i] - d * 2.f));
 					}
 					
 				}

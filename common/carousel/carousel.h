@@ -62,6 +62,7 @@ struct track {
 	friend race;
 	track() {}
 	std::vector<glm::vec3> curbs[2]; 
+	std::vector<glm::vec3> curbsNormals[2]; 
 
 	///length of the track
 	float length;
@@ -155,6 +156,29 @@ struct  terrain {
 		return	value;
 	}
 
+	glm::vec3 dtVec3(glm::vec3 p)
+	{
+		return dt(p.x, p.z);
+	}
+
+	glm::vec3 dt(int x, int z)
+	{
+		glm::vec3 p = glm::vec3(x, y(x, z), z);
+		glm::vec3 right = p + glm::vec3(1, 0, 0); 
+		glm::vec3 forward = p + glm::vec3(0, 0, 1);
+
+		if (x < size_pix.x)
+		{
+			right = glm::vec3(x + 1, y(x+1, z), z);
+		}
+
+		if (z < size_pix.y)
+		{
+			forward = glm::vec3(x, y(x, z+1), z+1);
+		}
+		
+		return glm::normalize(glm::cross((forward-p), (right-p)));
+	}
 };
 
 

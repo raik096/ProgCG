@@ -24,6 +24,5 @@ vec3 lambertDiffuse(vec3 L, vec3 N)
 void main(void)
 {
     vec4 textureColor = texture(uTexture, vTexCoord);
-    //FragColor = vec4(lambertDiffuse(uSunDirection, normalize(vNormal)), 1);
     FragColor = vec4(lambertDiffuse(uSunDirection, normalize(vNormal)), 1);
 }
