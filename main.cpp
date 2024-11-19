@@ -49,6 +49,12 @@ glm::mat4 view;
 matrix_stack stack;
 float scaling_factor = 1.0;
 
+//Callback per fare gestire il resize della finestra
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+	proj = glm::perspective(glm::radians(45.f), (float)width/height, 0.1f, 100.f);
+}
 
 /* callback function called when the mouse is moving
 	vediamo di capirci qualcosa:
@@ -139,6 +145,7 @@ int main(int argc, char** argv)
 	glfwMakeContextCurrent(window);
 
 	glewInit();
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	printout_opengl_glsl_info();
 
@@ -181,7 +188,7 @@ int main(int argc, char** argv)
 	box3 bbox;
 	std::vector<renderable> obj;
 	try {
-        gltfLoader.load_to_renderable("/home/re/ProgCG/assets/models/lamp.glb", obj, bbox);
+        gltfLoader.load_to_renderable("assets/models/lamp.glb", obj, bbox);
         std::cout << "Model loaded successfully!" << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error loading model: " << e.what() << std::endl;
@@ -220,6 +227,7 @@ int main(int argc, char** argv)
 		check_gl_errors(__LINE__, __FILE__);
 
 		//Aggiorna viewMatrix della camera
+		basic_shader.SetMatrix4x4("uProj", proj);
 		basic_shader.SetMatrix4x4("uView", view);
 
 		r.update();
@@ -298,12 +306,13 @@ int main(int argc, char** argv)
 			stack.push();
 			// Trasla la matrice 
 			// Crea una matrice di trasformazione combinata: traslazione + trasformazione base
-			stack.mult(obj[0].transform * glm::translate(glm::mat4(1), l.pos)); // Applica la trasformazione base del modello GLB
+			stack.mult(glm::translate(glm::mat4(1), l.pos) * obj[0].transform); // Applica la trasformazione base del modello GLB
 
 			//glm::mat4 model = stack.m() * glm::translate(glm::mat4(1), l.pos);
 			std::cout << "Matrice trasformazione: " << glm::to_string(stack.m()) << std::endl;
 
 			// Passa la matrice combinata allo shader
+			//basic_shader.SetMatrix4x4("uModel", glm::translate(glm::mat4(1), l.pos));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 
 			// Imposta il colore del lampione
