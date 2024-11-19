@@ -180,7 +180,7 @@ int main(int argc, char** argv)
 
 	box3 bbox;
 	std::vector<renderable> lamp;
-	gltfLoader.load_to_renderable("assets/models/lamp.gltf", lamp, bbox);
+	gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp, bbox);
 
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
