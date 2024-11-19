@@ -1,13 +1,26 @@
 #ifndef MATERIAL_gltf_H
 #define MATERIAL_gltf_H
 
-#include <tiny_gltf.h>
+
+#define TINYGLTF_IMPLEMENTATION
+//#define TINYGLTF_NOEXCEPTION
+//#define JSON_NOEXCEPTION
+#include "../3dparty/tinygltf/tiny_gltf.h"
 #include <string.h>
 
 
 #include "texture.h"
 #include "renderable.h"
 #include "debugging.h"
+
+int memcpy_safe(void *dest, size_t destsz, const void *src, size_t count) {
+    if (dest == NULL || src == NULL || destsz < count) {
+        return -1;  // Errore
+    }
+    // Se i controlli sono superati faccio il memcpy
+    memcpy(dest, src, count);
+    return 0;
+}
 
 struct gltf_loader {
 
@@ -197,7 +210,7 @@ struct gltf_loader {
 				tinygltf::Material mat = model.materials[primitive.material];
 				int index;
 				
-				memcpy_s(r.mater.base_color_factor,sizeof(double)*4,&mat.pbrMetallicRoughness.baseColorFactor[0], sizeof(double) * 4);
+				memcpy_safe(r.mater.base_color_factor,sizeof(double)*4,&mat.pbrMetallicRoughness.baseColorFactor[0], sizeof(double) * 4);
 				
 				index = mat.pbrMetallicRoughness.baseColorTexture.index;
 				r.mater.base_color_texture = (index != -1)?this->id_textures[index]: this->id_textures.empty()?-1:this->id_textures[0];
