@@ -77,7 +77,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		}
 
 	/* Qui ho implementato il tasto sx che fa il semplice drag */
-
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		//Quindi se sono qui dentro e' perche' sto premendo i tasti giusti
 		double xpos, ypos;
@@ -104,7 +103,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (action == GLFW_PRESS)
 		curr_tb = 1 - curr_tb;
 }
-
 
 int main(int argc, char** argv)
 {
@@ -135,8 +133,7 @@ int main(int argc, char** argv)
 	glfwMakeContextCurrent(window);
 
 	glewInit();
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	printout_opengl_glsl_info();
 
 	//Setuppiamo OPENGL---------------------------------------------
@@ -175,27 +172,20 @@ int main(int argc, char** argv)
 
 	gltf_loader gltfLoader;
 
-	box3 bbox_lamps, bbox_cars;
+	box3 bbox_lamps, bbox_cars, bbox_trees;
 	std::vector<renderable> lamp_objects;
 	std::vector<renderable> car_objects;
-	
-	try {
-        gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamps);
-        std::cout << "Model loaded successfully!" << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading model: " << e.what() << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-	try {
-        gltfLoader.load_to_renderable("assets/models/car0.glb", car_objects, bbox_cars);
-        std::cout << "Model loaded successfully!" << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading model: " << e.what() << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-	
+	std::vector<renderable> tree_objects;
+
+	/* carico le macchine quindi car_objects */
+    gltfLoader.load_to_renderable("assets/models/car0.glb", car_objects, bbox_cars);
+	/* carico le lamp quindi lamp_objects */
+    gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamps);
+	/* carico gli alberi quindi tree_objects */
+	gltfLoader.load_to_renderable("assets/models/trees.glb", tree_objects, bbox_trees);
+
+
+
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
 
@@ -216,9 +206,11 @@ int main(int argc, char** argv)
 
 	matrix_stack stack;
 
+	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
 	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 	texture track_texture = LoadTexture("common/carousel/street_tile.png");
-	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
+	
+	glActiveTexture(GL_TEXTURE0);
 	
 	while (!glfwWindowShouldClose(window))
 	{
@@ -231,12 +223,8 @@ int main(int argc, char** argv)
 		basic_shader.SetMatrix4x4("uProj", proj);
 		basic_shader.SetMatrix4x4("uView", view);
 
-		//Aggiorna carosello
 		r.update();
-
-		//Aggiorna informazioni sulla scena
 		basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
-
 		stack.load_identity();
 		stack.push();
 		stack.mult(tb[0].matrix());
@@ -265,38 +253,20 @@ int main(int argc, char** argv)
 
 		BindTexture(basic_shader, "uTexture", terrain_texture, 0);
 		r_terrain.bind();
-		//glDrawArrays(GL_POINTS, 0, r_terrain.vn);		
-		// Debug dei vertici e degli indici
+
 		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 		glDepthRange(0.0, 1);
-
-		/*
-  		car_objects[0].bind();
+		
+		car_objects[0].bind();
 		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
 			stack.push();
 			
-			stack.mult(glm::scale(glm::mat4(1.0f), glm::vec3(0.1f)) * r.cars()[ic].frame);
-			//stack.mult(glm::scale(r.cars()[ic].frame, glm::vec3(0.1f)));
-			//stack.mult(r.cars()[ic].frame * car_objects[0].transform);
-    		glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
-			
-			glUniform3f(basic_shader["uColor"], 1.f, 0.f, 0.f);
-			//glUniform1i(basic_shader["uTexture"], 0);
-			//DrawModel(car_objects, basic_shader, stack.m());
-			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);	
-			stack.pop();
-		}
-  		*/
-		
-		
-		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
-			stack.push();
+			// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
 			stack.mult(r.cars()[ic].frame * car_objects[0].transform);
-			glActiveTexture(GL_TEXTURE0);
+			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
     		glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
 			glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-			glUniform1i(basic_shader["uTexture"], 0);
-			DrawModel(car_objects, basic_shader, stack.m());
+			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);	
 			stack.pop();
 		}
 
@@ -323,27 +293,36 @@ int main(int argc, char** argv)
 		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
 		glDrawArrays(GL_LINES, 0, r_trees.vn);
 		
-		//Disegno i lampioni
-		BindTexture(basic_shader, "uTexture", lamp_texture, 0);
+		BindTexture(basic_shader, "uTexture", lamp_texture, 0);	
+		//Disegno i lampioni		
 		lamp_objects[0].bind();
 		for (stick_object l : r.lamps())
 		{
+			//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
 			stack.push();
-			// Trasla la matrice 
-			// Crea una matrice di trasformazione combinata: traslazione + trasformazione base
-			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1))); //Applica la trasformazione base del modello che scegliamo noi(in questo caso trasla di lpos e scala di 0.1)
-
+			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-
 			// Imposta il colore del lampione
 			glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
-
 			// Renderizza l'oggetto
 			glDrawElements(lamp_objects[0]().mode, lamp_objects[0]().count, lamp_objects[0]().itype, 0);
-
 			stack.pop(); // Ripristina lo stato precedente
 		}
-						
+
+		tree_objects[0].bind();
+		for (stick_object l : r.trees())
+		{
+			stack.push();
+			//stack.mult(glm::translate(tree_objects[0].transform, l.pos));
+			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
+			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+			glBindTexture(GL_TEXTURE_2D, tree_objects[0].mater.base_color_texture);
+			glUniform3f(basic_shader["uColor"], 0.95f, 0.99f, 0.68f);
+			glDrawElements(tree_objects[0]().mode, tree_objects[0]().count, tree_objects[0]().itype, 0);
+			stack.pop();
+
+		}
+
 		stack.pop();
 
 		/* Swap front and back buffers */
