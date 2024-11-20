@@ -182,9 +182,7 @@ int main(int argc, char** argv)
 	/* carico le lamp quindi lamp_objects */
     gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamps);
 	/* carico gli alberi quindi tree_objects */
-	gltfLoader.load_to_renderable("assets/models/trees.glb", tree_objects, bbox_trees);
-
-
+	gltfLoader.load_to_renderable("assets/models/lamp.glb", tree_objects, bbox_trees);
 
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
@@ -209,7 +207,23 @@ int main(int argc, char** argv)
 	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
 	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 	texture track_texture = LoadTexture("common/carousel/street_tile.png");
-	
+
+	//Impostazioni luce della scena
+	basic_shader.bind("uLampLigthColor");
+	basic_shader.SetVector3("uLampLigthColor", glm::vec3(1, 0.97, 0.76));
+	basic_shader.bind("uLampC1");
+	basic_shader.SetFloat("uLampC1", 0.01f);
+	basic_shader.bind("uLampC2");
+	basic_shader.SetFloat("uLampC2", 0.01f);
+	basic_shader.bind("uLampC3");
+	basic_shader.SetFloat("uLampC3", 1000.0f);
+
+
+	basic_shader.SetVector3("LampTest", r.lamps()[0].pos);
+	//Carica tutti i lampioni in shader
+	basic_shader.bind("uLampsAmount");
+	basic_shader.SetInt("uLampsAmount", r.lamps().size());
+
 	glActiveTexture(GL_TEXTURE0);
 	
 	while (!glfwWindowShouldClose(window))
@@ -221,13 +235,13 @@ int main(int argc, char** argv)
 
 		//Aggiorna viewMatrix della camera
 		basic_shader.SetMatrix4x4("uProj", proj);
-		basic_shader.SetMatrix4x4("uView", view);
+		basic_shader.SetMatrix4x4("uView", view * tb[0].matrix());
 
 		r.update();
 		basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
 		stack.load_identity();
 		stack.push();
-		stack.mult(tb[0].matrix());
+		//stack.mult(tb[0].matrix());
 		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 		glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
 		fram.bind();
@@ -296,12 +310,18 @@ int main(int argc, char** argv)
 		BindTexture(basic_shader, "uTexture", lamp_texture, 0);	
 		//Disegno i lampioni		
 		lamp_objects[0].bind();
-		for (stick_object l : r.lamps())
+		for (int i = 0;  i < r.lamps().size(); i++)
 		{
+			stick_object l = r.lamps()[i];
+
 			//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
 			stack.push();
 			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+
+			basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
+			basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
+
 			// Imposta il colore del lampione
 			glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
 			// Renderizza l'oggetto

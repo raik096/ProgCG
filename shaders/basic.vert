@@ -5,6 +5,7 @@ layout (location = 2) in vec3 aNormal;
 layout (location = 4) in vec2 aTexCoord;
 
 out vec3 vPos;
+out vec3 wPos;
 out vec3 vNormal;
 out vec2 vTexCoord;
 out vec3 vColor;
@@ -16,7 +17,8 @@ uniform mat4 uModel;
 void main(void) 
 { 
     vPos = (uView*uModel*vec4(aPosition, 1.0)).xyz;
-    vNormal = aNormal; 
+    wPos = (uModel*vec4(aPosition, 1.0)).xyz;
+    vNormal = (vec4(aNormal, 0)).xyz; 
     vTexCoord = aTexCoord;
 	vColor = aColor;
     gl_Position = uProj*uView*uModel*vec4(aPosition, 1.0); 

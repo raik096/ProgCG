@@ -30,7 +30,7 @@ struct shader{
 			if (uni.find(name) == uni.end()) {
 				
 				//Prova a cercarla nella shader
-				int uniformLocation = uni[name] = glGetUniformLocation(program, name.c_str());
+				int uniformLocation = glGetUniformLocation(program, name.c_str());
 				if(uniformLocation != -1)
 				{
 					//Se la trovi fai il bind e ritorna
