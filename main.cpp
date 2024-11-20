@@ -269,7 +269,25 @@ int main(int argc, char** argv)
 		// Debug dei vertici e degli indici
 		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 		glDepthRange(0.0, 1);
-				
+
+		/*
+  		car_objects[0].bind();
+		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
+			stack.push();
+			
+			stack.mult(glm::scale(glm::mat4(1.0f), glm::vec3(0.1f)) * r.cars()[ic].frame);
+			//stack.mult(glm::scale(r.cars()[ic].frame, glm::vec3(0.1f)));
+			//stack.mult(r.cars()[ic].frame * car_objects[0].transform);
+    		glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
+			
+			glUniform3f(basic_shader["uColor"], 1.f, 0.f, 0.f);
+			//glUniform1i(basic_shader["uTexture"], 0);
+			//DrawModel(car_objects, basic_shader, stack.m());
+			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);	
+			stack.pop();
+		}
+  		*/
+		
 		
 		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
 			stack.push();
