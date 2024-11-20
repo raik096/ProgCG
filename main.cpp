@@ -3,7 +3,6 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "3dparty/nanosvg/src/nanosvgrast.h"
 
-#include "common/texture.h"
 
 
 // Include OpenGL-related libraries
@@ -22,6 +21,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "3dparty/tinygltf/stb_image.h"
 #include "3dparty/tinygltf/stb_image_write.h"
+#include "common/texture.h"
 
 // Project-specific headers
 #include "common/utilities.h"
