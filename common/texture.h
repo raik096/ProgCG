@@ -21,6 +21,7 @@ struct texture {
 	 */	
 	GLuint load(std::string name, GLuint tu) {
 		unsigned char * data;
+		stbi_set_flip_vertically_on_load(true);
 		data = stbi_load(name.c_str(), &x_size, &y_size, &n_components, 0);
 		//stbi__vertical_flip(data, x_size, y_size, n_components);
 		/* mi serve per attivare la texture sull'unita' specificata */
