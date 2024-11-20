@@ -180,7 +180,7 @@ int main(int argc, char** argv)
 	std::vector<renderable> car_objects;
 	
 	try {
-        gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamp);
+        gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamps);
         std::cout << "Model loaded successfully!" << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error loading model: " << e.what() << std::endl;
@@ -269,20 +269,20 @@ int main(int argc, char** argv)
 		// Debug dei vertici e degli indici
 		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 		glDepthRange(0.0, 1);
-		
-		car_objects[0].bind();			
+				
 		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
 			stack.push();
 			stack.mult(r.cars()[ic].frame);
-			stack.mult(glm::translate(glm::mat4(1.f), glm::vec3(0, 0.1, 0.0)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+			stack.mult(glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(0, 0.1, 0.0)), glm::vec3(2, 2, 2)));
+			//glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 			glUniform3f(basic_shader["uColor"], 0.f, 0.f, 0.f);
 			//fram.bind();
 			//glDrawArrays(GL_LINES, 0, 6);
 			glActiveTexture(GL_TEXTURE0); // Usa la texture unit 0
     			glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
 			glUniform1i(basic_shader["uTexture"], 0);
-			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);
+			DrawModel(car_objects, basic_shader, stack.m());
+
 			stack.pop();
 		}
 
@@ -311,7 +311,7 @@ int main(int argc, char** argv)
 		
 		//Disegno i lampioni
 		BindTexture(basic_shader, "uTexture", lamp_texture, 0);
-		obj[0].bind();
+		lamp_objects[0].bind();
 		for (stick_object l : r.lamps())
 		{
 			stack.push();
@@ -325,7 +325,7 @@ int main(int argc, char** argv)
 			glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
 
 			// Renderizza l'oggetto
-			glDrawElements(obj[0]().mode, obj[0]().count, obj[0]().itype, 0);
+			glDrawElements(lamp_objects[0]().mode, lamp_objects[0]().count, lamp_objects[0]().itype, 0);
 
 			stack.pop(); // Ripristina lo stato precedente
 		}
