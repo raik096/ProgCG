@@ -279,6 +279,9 @@ int main(int argc, char** argv)
 			glUniform3f(basic_shader["uColor"], 0.f, 0.f, 0.f);
 			//fram.bind();
 			//glDrawArrays(GL_LINES, 0, 6);
+			glActiveTexture(GL_TEXTURE0); // Usa la texture unit 0
+    			glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
+			glUniform1i(basic_shader["uTexture"], 0);
 			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);
 			stack.pop();
 		}
