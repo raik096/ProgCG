@@ -172,10 +172,11 @@ int main(int argc, char** argv)
 
 	gltf_loader gltfLoader;
 
-	box3 bbox_lamps, bbox_cars, bbox_trees;
+	box3 bbox_lamps, bbox_cars, bbox_trees, bbox_drones;
 	std::vector<renderable> lamp_objects;
 	std::vector<renderable> car_objects;
 	std::vector<renderable> tree_objects;
+	std::vector<renderable> drone_objects;
 
 	/* carico le macchine quindi car_objects */
     gltfLoader.load_to_renderable("assets/models/car0.glb", car_objects, bbox_cars);
@@ -183,6 +184,8 @@ int main(int argc, char** argv)
     gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamps);
 	/* carico gli alberi quindi tree_objects */
 	gltfLoader.load_to_renderable("assets/models/trees.glb", tree_objects, bbox_trees);
+	/* carico i droni quindi droni_objects */
+	gltfLoader.load_to_renderable("assets/models/drone.glb", drone_objects, bbox_drones);
 
 
 
@@ -270,14 +273,16 @@ int main(int argc, char** argv)
 			stack.pop();
 		}
 
-		fram.bind();
+		//fram.bind();
+		drone_objects[0].bind();
 		for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
 			stack.push();
-			stack.mult(r.cameramen()[ic].frame);
-			stack.mult(glm::scale(glm::mat4(1.f), glm::vec3(4, 4, 4)));
+			stack.mult(r.cameramen()[ic].frame * drone_objects[0].transform);
+			stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
-			glDrawArrays(GL_LINES, 0, 6);
+			glBindTexture(GL_TEXTURE_2D, drone_objects[0].mater.base_color_texture);
+			glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
+			glDrawElements(drone_objects[0].mode, drone_objects[0]().count, drone_objects[0]().itype, 0);
 			stack.pop();
 		}
 		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
