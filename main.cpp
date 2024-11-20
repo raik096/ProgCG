@@ -270,19 +270,18 @@ int main(int argc, char** argv)
 		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 		glDepthRange(0.0, 1);
 				
+		
+		//car_objects[0].bind();			
 		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
 			stack.push();
-			stack.mult(r.cars()[ic].frame);
-			stack.mult(glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(0, 0.1, 0.0)), glm::vec3(2, 2, 2)));
-			//glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glUniform3f(basic_shader["uColor"], 0.f, 0.f, 0.f);
-			//fram.bind();
-			//glDrawArrays(GL_LINES, 0, 6);
-			glActiveTexture(GL_TEXTURE0); // Usa la texture unit 0
-    			glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
+			stack.mult(r.cars()[ic].frame * car_objects[0].transform);
+    		glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
+			//stack.mult(r.cars()[ic].frame);
+			//stack.mult(glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(0, 0.1, 0.0)), glm::vec3(2, 2, 2)));
+			glUniform3f(basic_shader["uColor"], 1.f, 0.f, 0.f);
+			//glActiveTexture(GL_TEXTURE0); // Usa la texture unit 0
 			glUniform1i(basic_shader["uTexture"], 0);
 			DrawModel(car_objects, basic_shader, stack.m());
-
 			stack.pop();
 		}
 
