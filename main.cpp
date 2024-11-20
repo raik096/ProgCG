@@ -56,12 +56,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	proj = glm::perspective(glm::radians(45.f), (float)width/height, 0.1f, 100.f);
 }
 
-/* callback function called when the mouse is moving
-	vediamo di capirci qualcosa:
-	la funzione sotto mi serve per gestire il meccanismo si trackball e prende come argomento:
-	la posizione sull'asse x e quella sull'asse y, essendo il mouse sulla finestra non ha bisogno della
-	coordinata z, a questo punto h come arogmento il puntatore alla finestra di rendering
-*/
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	tb[curr_tb].mouse_move(proj, view, xpos, ypos);
@@ -110,10 +104,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (action == GLFW_PRESS)
 		curr_tb = 1 - curr_tb;
 }
-
-/* fase texture */
-
-
 
 
 int main(int argc, char** argv)
@@ -185,17 +175,27 @@ int main(int argc, char** argv)
 
 	gltf_loader gltfLoader;
 
-	box3 bbox;
-	std::vector<renderable> obj;
+	box3 bbox_lamps, bbox_cars;
+	std::vector<renderable> lamp_objects;
+	std::vector<renderable> car_objects;
+	
 	try {
-        gltfLoader.load_to_renderable("assets/models/lamp.glb", obj, bbox);
+        gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamp);
         std::cout << "Model loaded successfully!" << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error loading model: " << e.what() << std::endl;
         glfwTerminate();
         return -1;
     }
-
+	try {
+        gltfLoader.load_to_renderable("assets/models/car0.glb", car_objects, bbox_cars);
+        std::cout << "Model loaded successfully!" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading model: " << e.what() << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+	
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
 
@@ -218,7 +218,6 @@ int main(int argc, char** argv)
 
 	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 	texture track_texture = LoadTexture("common/carousel/street_tile.png");
-
 	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
 	
 	while (!glfwWindowShouldClose(window))
@@ -270,15 +269,17 @@ int main(int argc, char** argv)
 		// Debug dei vertici e degli indici
 		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 		glDepthRange(0.0, 1);
-
+		
+		car_objects[0].bind();			
 		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
 			stack.push();
 			stack.mult(r.cars()[ic].frame);
 			stack.mult(glm::translate(glm::mat4(1.f), glm::vec3(0, 0.1, 0.0)));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
-			fram.bind();
-			glDrawArrays(GL_LINES, 0, 6);
+			glUniform3f(basic_shader["uColor"], 0.f, 0.f, 0.f);
+			//fram.bind();
+			//glDrawArrays(GL_LINES, 0, 6);
+			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);
 			stack.pop();
 		}
 
@@ -315,11 +316,6 @@ int main(int argc, char** argv)
 			// Crea una matrice di trasformazione combinata: traslazione + trasformazione base
 			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1))); //Applica la trasformazione base del modello che scegliamo noi(in questo caso trasla di lpos e scala di 0.1)
 
-			//glm::mat4 model = stack.m() * glm::translate(glm::mat4(1), l.pos);
-			//std::cout << "Matrice trasformazione: " << glm::to_string(stack.m()) << std::endl;
-
-			// Passa la matrice combinata allo shader
-			//basic_shader.SetMatrix4x4("uModel", glm::translate(glm::mat4(1), l.pos));
 			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 
 			// Imposta il colore del lampione
@@ -331,22 +327,6 @@ int main(int argc, char** argv)
 			stack.pop(); // Ripristina lo stato precedente
 		}
 						
-		/* metodo funzionale nel rendering di almeno un lampione
-		obj[0].bind();
-		for (stick_object l : r.lamps())
-		{
-			stack.push();
-			stack.mult(obj[0].transform);
-			//glm::mat4 model = glm::translate(glm::mat4(1), l.pos);
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glUniform3f(basic_shader["uColor"], 0.0f, 0.0f, 0.0f);
-			glDrawElements(obj[0]().mode, obj[0]().count, obj[0]().itype, 0);
-			stack.pop();
-		}
-		*/
-		//r_lamps.bind();
-		//glDrawArrays(GL_LINES, 0, r_lamps.vn);
-
 		stack.pop();
 
 		/* Swap front and back buffers */
