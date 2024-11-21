@@ -132,6 +132,8 @@ int main(int argc, char** argv)
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
+	glfwSwapInterval(1); // Sincronizza con il refresh rate del monitor
+
 	glewInit();
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	printout_opengl_glsl_info();
@@ -162,9 +164,9 @@ int main(int argc, char** argv)
 	r_terrain.create();
 	game_to_renderable::to_heightfield(r, r_terrain);
 
-	renderable r_trees;
-	r_trees.create();
-	game_to_renderable::to_tree(r, r_trees);
+	//renderable r_trees;
+	//r_trees.create();
+	//game_to_renderable::to_tree(r, r_trees);
 
 	//renderable r_lamps;
 	//r_lamps.create();
@@ -204,7 +206,7 @@ int main(int argc, char** argv)
 	basic_shader.SetMatrix4x4("uProj", proj);
 	basic_shader.SetMatrix4x4("uView", view);
 
-	r.start(11, 0, 0, 300);
+	r.start(11, 0, 0, 50);
 	r.update();
 
 	matrix_stack stack;
@@ -212,8 +214,8 @@ int main(int argc, char** argv)
 	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
 	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 	texture track_texture = LoadTexture("common/carousel/street_tile.png");
-
-	//Impostazioni luce della scena
+	
+		//Impostazioni luce della scena
 	basic_shader.bind("uLampLigthColor");
 	basic_shader.SetVector3("uLampLigthColor", glm::vec3(1, 0.97, 0.76));
 	basic_shader.bind("uLampC1");
@@ -222,8 +224,6 @@ int main(int argc, char** argv)
 	basic_shader.SetFloat("uLampC2", 0.01f);
 	basic_shader.bind("uLampC3");
 	basic_shader.SetFloat("uLampC3", 1000.0f);
-
-
 	basic_shader.SetVector3("LampTest", r.lamps()[0].pos);
 	//Carica tutti i lampioni in shader
 	basic_shader.bind("uLampsAmount");
@@ -276,29 +276,42 @@ int main(int argc, char** argv)
 		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
 		glDepthRange(0.0, 1);
 		
-		car_objects[0].bind();
-		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
+
+		for (unsigned int k = 0; k < r.cars().size(); ++k) {
 			stack.push();
-			
-			// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
-			stack.mult(r.cars()[ic].frame * car_objects[0].transform);
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-    		glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
-			glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);	
+			stack.mult(r.cars()[k].frame);
+			for (unsigned int i = 0; i < tree_objects.size(); ++i) {
+				car_objects[i].bind();
+				stack.push();
+				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
+				stack.mult(car_objects[i].transform);
+				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+				glBindTexture(GL_TEXTURE_2D, car_objects[i].mater.base_color_texture);
+				glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
+				glDrawElements(car_objects[i]().mode, car_objects[i]().count, car_objects[i]().itype, 0);	
+				stack.pop();
+			}
 			stack.pop();
 		}
 
 		//fram.bind();
-		drone_objects[0].bind();
-		for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
+		for (int k = 0; k < r.cameramen().size(); ++k) {
 			stack.push();
-			stack.mult(r.cameramen()[ic].frame * drone_objects[0].transform);
-			stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glBindTexture(GL_TEXTURE_2D, drone_objects[0].mater.base_color_texture);
-			glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-			glDrawElements(drone_objects[0].mode, drone_objects[0]().count, drone_objects[0]().itype, 0);
+			glm::mat4 model = r.cameramen()[k].frame; // Matrice di trasformazione base (traslazione sul punto)
+			model = model * glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));  // Scala
+			model = model * glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 1.0f, 0.0f)); // Traslazione verso l'alto
+			stack.mult(model);
+
+			for (unsigned int i = 0; i < tree_objects.size(); ++i) {
+				drone_objects[i].bind();
+				stack.push();
+				stack.mult(drone_objects[i].transform);
+				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+				glBindTexture(GL_TEXTURE_2D, drone_objects[i].mater.base_color_texture);
+				glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
+				glDrawElements(drone_objects[i].mode, drone_objects[i]().count, drone_objects[i]().itype, 0);
+				stack.pop();
+			}
 			stack.pop();
 		}
 		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
@@ -310,12 +323,37 @@ int main(int argc, char** argv)
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
 		glPointSize(1.0);
 		
-		r_trees.bind();
-		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
-		glDrawArrays(GL_LINES, 0, r_trees.vn);
+
+		for (int k = 0;  k < r.trees().size(); k++)
+		{
+			stick_object l = r.trees()[k];
+			stack.push();
+			stack.mult(glm::scale(glm::translate(glm::mat4(1.0f), l.pos), glm::vec3(0.1f))); // Traslazione
+
+			for (unsigned int i = 0; i < tree_objects.size(); ++i) {
+				tree_objects[i].bind();
+				stack.push();
+				stack.mult(tree_objects[i].transform);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, tree_objects[i].mater.base_color_texture);
+				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+				glUniform3f(basic_shader["uColor"], 0.08f, 0.53f, 0);
+				/* l'idea e' quella di sfruttare i colori del modello		
+				glUniform3f(
+					basic_shader["uColor"], 
+					(GLfloat)tree_objects[i].mater.base_color_factor[0],
+					(GLfloat)tree_objects[i].mater.base_color_factor[1],
+					(GLfloat)tree_objects[i].mater.base_color_factor[2]);
+				*/
+				glDrawElements(tree_objects[i]().mode, tree_objects[i]().count, tree_objects[i]().itype, 0);
+				stack.pop();
+			}
+			stack.pop();
+		}
+	
 		
-		BindTexture(basic_shader, "uTexture", lamp_texture, 0);	
-		//Disegno i lampioni		
+		BindTexture(basic_shader, "uTexture", lamp_texture, 0);
+		//Disegno i lampioni v1	
 		lamp_objects[0].bind();
 		for (int i = 0;  i < r.lamps().size(); i++)
 		{
@@ -334,21 +372,32 @@ int main(int argc, char** argv)
 			// Renderizza l'oggetto
 			glDrawElements(lamp_objects[0]().mode, lamp_objects[0]().count, lamp_objects[0]().itype, 0);
 			stack.pop(); // Ripristina lo stato precedente
-		}
-
-		tree_objects[0].bind();
-		for (stick_object l : r.trees())
+		}	
+		/*
+		//Disegno i lampioni v2
+		for (int k = 0;  k < r.lamps().size(); k++)
 		{
+			stick_object l = r.lamps()[k];
 			stack.push();
-			//stack.mult(glm::translate(tree_objects[0].transform, l.pos));
 			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glBindTexture(GL_TEXTURE_2D, tree_objects[0].mater.base_color_texture);
-			glUniform3f(basic_shader["uColor"], 0.95f, 0.99f, 0.68f);
-			glDrawElements(tree_objects[0]().mode, tree_objects[0]().count, tree_objects[0]().itype, 0);
-			stack.pop();
 
+			for (unsigned int i = 0; i < lamp_objects.size(); ++i) {
+				lamp_objects[i].bind();
+				//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
+				stack.push();
+				//stack.mult(lamp_objects[i].transform);
+				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+				basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
+				basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
+				// Imposta il colore del lampione
+				glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
+				// Renderizza l'oggetto
+				glDrawElements(lamp_objects[i]().mode, lamp_objects[i]().count, lamp_objects[i]().itype, 0);
+				stack.pop(); // Ripristina lo stato precedente
+			}
+			stack.pop();
 		}
+		*/
 
 		stack.pop();
 
