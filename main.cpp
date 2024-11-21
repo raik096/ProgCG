@@ -353,42 +353,19 @@ int main(int argc, char** argv)
 	
 		
 		BindTexture(basic_shader, "uTexture", lamp_texture, 0);
-		//Disegno i lampioni v1	
-		lamp_objects[0].bind();
-		for (int i = 0;  i < r.lamps().size(); i++)
-		{
-			stick_object l = r.lamps()[i];
-
-			//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
-			stack.push();
-			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-
-			basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
-			basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
-
-			// Imposta il colore del lampione
-			glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
-			// Renderizza l'oggetto
-			glDrawElements(lamp_objects[0]().mode, lamp_objects[0]().count, lamp_objects[0]().itype, 0);
-			stack.pop(); // Ripristina lo stato precedente
-		}	
-		/*
-		//Disegno i lampioni v2
 		for (int k = 0;  k < r.lamps().size(); k++)
 		{
 			stick_object l = r.lamps()[k];
 			stack.push();
 			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
+			basic_shader.bind("uLampLights[" + std::to_string(k) + "]");
+			basic_shader.SetVector3("uLampLights[" + std::to_string(k) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
 
 			for (unsigned int i = 0; i < lamp_objects.size(); ++i) {
 				lamp_objects[i].bind();
 				//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
 				stack.push();
-				//stack.mult(lamp_objects[i].transform);
 				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-				basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
-				basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
 				// Imposta il colore del lampione
 				glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
 				// Renderizza l'oggetto
@@ -397,7 +374,6 @@ int main(int argc, char** argv)
 			}
 			stack.pop();
 		}
-		*/
 
 		stack.pop();
 
