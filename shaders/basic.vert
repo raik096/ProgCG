@@ -18,7 +18,7 @@ void main(void)
 { 
     vPos = (uView*uModel*vec4(aPosition, 1.0)).xyz;
     wPos = (uModel*vec4(aPosition, 1.0)).xyz;
-    vNormal = (vec4(aNormal, 0)).xyz; 
+    vNormal = mat3(transpose(inverse(uModel))) * aNormal;
     vTexCoord = aTexCoord;
 	vColor = aColor;
     gl_Position = uProj*uView*uModel*vec4(aPosition, 1.0); 
