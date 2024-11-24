@@ -98,11 +98,51 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 		tb[0].mouse_scroll(xoffset, yoffset);
 }
 
+bool change_cam = false;
+glm::mat4 backupview(1.0f);
+
+void change_view(const race& r) 
+{
+    if (change_cam) {
+        backupview = view;
+		
+		//view = r.cameramen()[3].frame;
+		//view[0] = glm::vec4(0, 0, 0, 0);
+		view = glm::lookAt(glm::vec3(r.cameramen()[1].frame[3]), 
+						   glm::vec3(r.cameramen()[1].frame[3] - r.cameramen()[1].frame[2]), 
+						   glm::vec3(r.cameramen()[1].frame[1]));
+		//view += glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+		//view = glm::inverse(glm::translate(r.cameramen()[3].frame, glm::vec(0.0	f, 1.0f, 0.0f)));
+
+	
+		//COORDINATE COMERAMEN 1
+		//Actual View Matrix:
+		//mat4x4((7.927183, 0.000000, 0.000000, 0.000000), (0.000000, 6.595815, 4.397210, 0.000000), (0.000000, -4.397210, 6.595815, 0.000000), (2.327531, 0.731998, -1.314777, 1.000000))
+	
+    } else {
+        // Se la matrice non e' vuota vuoldire che voglio ripristinare quella iniziale
+        if (backupview != glm::mat4(1.0f)) {
+            view = backupview;
+        }
+    }
+}
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	/* every time any key is presse it switch from controlling trackball tb[0] to tb[1] and viceversa */
-	if (action == GLFW_PRESS)
+	if (action == GLFW_PRESS) 
 		curr_tb = 1 - curr_tb;
+		if (key == GLFW_KEY_C) {
+			if (change_cam) {
+				change_cam = false; 
+				return;
+			}
+			if (!change_cam) {
+				change_cam = true; 
+				return;
+			}
+		}
 }
+
 
 int main(int argc, char** argv)
 {
@@ -144,7 +184,6 @@ int main(int argc, char** argv)
 
 	glEnable(GL_DEPTH_TEST);
 
-
 	//Setuppiamo il carosello---------------------------------------------
 	race r;
 	carousel_loader::load("small_test.svg", "terrain_256.png", r);
@@ -164,14 +203,6 @@ int main(int argc, char** argv)
 	r_terrain.create();
 	game_to_renderable::to_heightfield(r, r_terrain);
 
-	//renderable r_trees;
-	//r_trees.create();
-	//game_to_renderable::to_tree(r, r_trees);
-
-	//renderable r_lamps;
-	//r_lamps.create();
-	//game_to_renderable::to_lamps(r, r_lamps);
-
 	gltf_loader gltfLoader;
 
 	box3 bbox_lamps, bbox_cars, bbox_trees, bbox_drones;
@@ -190,7 +221,6 @@ int main(int argc, char** argv)
 	gltfLoader.load_to_renderable("assets/models/drone.glb", drone_objects, bbox_drones);
 
 
-
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
 
@@ -203,10 +233,21 @@ int main(int argc, char** argv)
 
 	proj = glm::perspective(glm::radians(45.f), 1.f, 0.1f, 100.f);
 	view = glm::lookAt(glm::vec3(0, 1.f, 1.5), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
+	//view = glm::lookAt(glm::vec3(r.cameramen()[1].frame[3]), 
+	//				   glm::vec3(r.cameramen()[1].frame[3] - r.cameramen()[1].frame[2]),
+	//				   glm::vec3(r.cameramen()[1].frame[1]));
+	
+	std::cout << "View Matrix:\n" << glm::to_string(view) << std::endl;
+	std::cout << "r.cameramen()[3].frame[3]: \n" << glm::to_string(*(glm::vec3*)&r.cameramen()[3].frame[3]) << std::endl;
+	std::cout << "cameramen.pos: " << glm::to_string(r.cameramen()[3].pos) << std::endl;
+
+
+
+
 	basic_shader.SetMatrix4x4("uProj", proj);
 	basic_shader.SetMatrix4x4("uView", view);
 
-	r.start(11, 0, 0, 50);
+	r.start(11, 0, 0, 20);
 	r.update();
 
 	matrix_stack stack;
@@ -219,18 +260,45 @@ int main(int argc, char** argv)
 	basic_shader.bind("uLampLigthColor");
 	basic_shader.SetVector3("uLampLigthColor", glm::vec3(1, 0.97, 0.76));
 	basic_shader.bind("uLampC1");
-	basic_shader.SetFloat("uLampC1", 0.01f);
+	basic_shader.SetFloat("uLampC1", 0.1f);
 	basic_shader.bind("uLampC2");
-	basic_shader.SetFloat("uLampC2", 0.01f);
+	basic_shader.SetFloat("uLampC2", 0.02f);
 	basic_shader.bind("uLampC3");
-	basic_shader.SetFloat("uLampC3", 1000.0f);
+	basic_shader.SetFloat("uLampC3", 750.0f);
 	basic_shader.SetVector3("LampTest", r.lamps()[0].pos);
 	//Carica tutti i lampioni in shader
 	basic_shader.bind("uLampsAmount");
 	basic_shader.SetInt("uLampsAmount", r.lamps().size());
 
+
+
+	// Imposta il colore dei fari
+	basic_shader.bind("uHeadlightColor");
+	basic_shader.SetVector3("uHeadlightColor", glm::vec3(1.0f, 0.9f, 0.8f)); // Colore bianco caldo
+
+	// Imposta la attenuazione
+	basic_shader.bind("uHeadlightC1");
+	basic_shader.SetFloat("uHeadlightC1", 0.1f); // Costante
+	basic_shader.bind("uHeadlightC2");
+	basic_shader.SetFloat("uHeadlightC2", 0.02f); // Lineare
+	basic_shader.bind("uHeadlightC3");
+	basic_shader.SetFloat("uHeadlightC3", 100.f); // Quadratica
+
+	// Angoli del cono (cutoff interno ed esterno)
+	basic_shader.bind("uHeadlightCutOff");
+	basic_shader.SetFloat("uHeadlightCutOff", glm::cos(glm::radians(5.5f))); // Interno
+	basic_shader.bind("uHeadlightOuterCutOff");
+	basic_shader.SetFloat("uHeadlightOuterCutOff", glm::cos(glm::radians(50.f))); // Esterno
+
+	// Carica tutti i fari in shader (cars x 2)
+	basic_shader.bind("uHeadlightAmount");
+	basic_shader.SetInt("uHeadlightAmount", r.cars().size() * 2);
+
+
 	glActiveTexture(GL_TEXTURE0);
-	
+	bool prev_change_cam = change_cam;
+	//std::vector glm::vec3> cameramanPosition
+
 	while (!glfwWindowShouldClose(window))
 	{
 		/* Render here */
@@ -238,9 +306,16 @@ int main(int argc, char** argv)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		check_gl_errors(__LINE__, __FILE__);
 
+
 		//Aggiorna viewMatrix della camera
 		basic_shader.SetMatrix4x4("uProj", proj);
+		// Aggiorna la viewMatrix solo se necessario
+		if (change_cam != prev_change_cam) {
+			change_view(r);  // Aggiorna la vista se la telecamera è cambiata
+			prev_change_cam = change_cam;  // Memorizza lo stato precedente
+		}
 		basic_shader.SetMatrix4x4("uView", view * tb[0].matrix());
+		//std::cout << "Actual View Matrix:\n" << glm::to_string(view * tb[0].matrix()) << std::endl;
 
 		r.update();
 		basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
@@ -280,20 +355,39 @@ int main(int argc, char** argv)
 		for (unsigned int k = 0; k < r.cars().size(); ++k) {
 			stack.push();
 			stack.mult(r.cars()[k].frame);
-			for (unsigned int i = 0; i < tree_objects.size(); ++i) {
+			//stack.mult(glm::rotate(r.cars()[k].frame, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+
+			// Posizione primo faro
+			glm::vec3 headlightPos1 = glm::vec3(glm::translate(stack.m(), glm::vec3(0.7f, 0.3f, 0.5f)) * glm::vec4(0, 0, 0, 1));
+			basic_shader.bind("uHeadlights[" + std::to_string(k * 2) + "]");
+			basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2) + "]", headlightPos1);
+
+			// Posizione secondo faro
+			glm::vec3 headlightPos2 = glm::vec3(glm::translate(stack.m(), glm::vec3(-0.7f, 0.3f, 0.5f)) * glm::vec4(0, 0, 0, 1));
+			basic_shader.bind("uHeadlights[" + std::to_string(k * 2 + 1) + "]");
+			basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2 + 1) + "]", headlightPos2);
+
+			// Direzione dei fari
+			glm::vec3 headlightDir = glm::normalize(glm::vec3(stack.m()[3]));  // Direzione del primo faro
+			//glm::vec3 headlightDir = glm::normalize(glm::vec3(stack.m() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f)));  // Direzione del primo faro
+    		basic_shader.bind("uHeadlightDir");
+			basic_shader.SetVector3("uHeadlightDir", headlightDir);
+
+			for (unsigned int i = 0; i < car_objects.size(); ++i) {
 				car_objects[i].bind();
 				stack.push();
-				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
 				stack.mult(car_objects[i].transform);
 				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 				glBindTexture(GL_TEXTURE_2D, car_objects[i].mater.base_color_texture);
 				glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-				glDrawElements(car_objects[i]().mode, car_objects[i]().count, car_objects[i]().itype, 0);	
-				stack.pop();
+				glDrawElements(car_objects[i]().mode, car_objects[i]().count, car_objects[i]().itype, 0);    
+				stack.pop(); 
 			}
+
 			stack.pop();
 		}
 
+		
 		//fram.bind();
 		for (int k = 0; k < r.cameramen().size(); ++k) {
 			stack.push();
@@ -301,8 +395,11 @@ int main(int argc, char** argv)
 			model = model * glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));  // Scala
 			model = model * glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 1.0f, 0.0f)); // Traslazione verso l'alto
 			stack.mult(model);
+			//std::cout << "model cameraman Matrix:\n" << glm::to_string(model) << std::endl;
 
-			for (unsigned int i = 0; i < tree_objects.size(); ++i) {
+			//glm::vec3 cameramanPosition = glm::vec3(model[3]); // Estrae la traslazione (posizione)
+
+			for (unsigned int i = 0; i < drone_objects.size(); ++i) {
 				drone_objects[i].bind();
 				stack.push();
 				stack.mult(drone_objects[i].transform);
@@ -324,39 +421,42 @@ int main(int argc, char** argv)
 		glPointSize(1.0);
 		
 
-		for (int k = 0;  k < r.trees().size(); k++)
-		{
-			stick_object l = r.trees()[k];
-			stack.push();
-			stack.mult(glm::scale(glm::translate(glm::mat4(1.0f), l.pos), glm::vec3(0.1f))); // Traslazione
+	for (int k = 0; k < r.trees().size(); k++) {
+		stick_object l = r.trees()[k];
+		stack.push();
+		stack.mult(glm::scale(glm::translate(glm::mat4(1.0f), l.pos), glm::vec3(0.1f))); // Traslazione
 
-			for (unsigned int i = 0; i < tree_objects.size(); ++i) {
-				tree_objects[i].bind();
-				stack.push();
-				stack.mult(tree_objects[i].transform);
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, tree_objects[i].mater.base_color_texture);
-				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-				glUniform3f(basic_shader["uColor"], 0.08f, 0.53f, 0);
-				/* l'idea e' quella di sfruttare i colori del modello		
-				glUniform3f(
-					basic_shader["uColor"], 
-					(GLfloat)tree_objects[i].mater.base_color_factor[0],
-					(GLfloat)tree_objects[i].mater.base_color_factor[1],
-					(GLfloat)tree_objects[i].mater.base_color_factor[2]);
-				*/
-				glDrawElements(tree_objects[i]().mode, tree_objects[i]().count, tree_objects[i]().itype, 0);
-				stack.pop();
-			}
+		for (unsigned int i = 0; i < tree_objects.size(); ++i) {
+			tree_objects[i].bind();
+			stack.push();
+			stack.mult(tree_objects[i].transform);
+			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+			glBindTexture(GL_TEXTURE_2D, tree_objects[i].mater.base_color_texture);
+			
+			// Imposta il colore se necessario
+			glm::vec3 objectColor = (i == 1) ? glm::vec3(0.45f, 0.17f, 0.02f) : glm::vec3(0.08f, 0.53f, 0.0f); 
+			basic_shader.SetVector3("uColor", objectColor);
+
+			// Aggiungi le normali (assicurati di avere le normali nel modello)
+			//tree_objects[i].add_vertex_attribute(
+			//	&tree_objects[i].mater.normal_texture,
+			//	tree_objects[i].mater.normal_texture.size() / 3,
+			//	2,
+			//	3);
+
+			glDrawElements(tree_objects[i]().mode, tree_objects[i]().count, tree_objects[i]().itype, 0);
 			stack.pop();
 		}
+		stack.pop();
+	}
+
 	
-		
 		BindTexture(basic_shader, "uTexture", lamp_texture, 0);
 		for (int k = 0;  k < r.lamps().size(); k++)
 		{
 			stick_object l = r.lamps()[k];
 			stack.push();
+			//stack.mult(glm::translate(glm::mat4(1), l.pos));
 			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
 			basic_shader.bind("uLampLights[" + std::to_string(k) + "]");
 			basic_shader.SetVector3("uLampLights[" + std::to_string(k) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
@@ -365,12 +465,14 @@ int main(int argc, char** argv)
 				lamp_objects[i].bind();
 				//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
 				stack.push();
+				//stack.mult(lamp_objects[i].transform);
+				//glBindTexture(GL_TEXTURE_2D, lamp_objects[i].mater.base_color_texture);
 				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
 				// Imposta il colore del lampione
 				glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
 				// Renderizza l'oggetto
 				glDrawElements(lamp_objects[i]().mode, lamp_objects[i]().count, lamp_objects[i]().itype, 0);
-				stack.pop(); // Ripristina lo stato precedente
+				stack.pop();
 			}
 			stack.pop();
 		}
