@@ -24,6 +24,22 @@ uniform float uLampC1; //Costante
 uniform float uLampC2; //Lineare
 uniform float uLampC3; //Quadratico
 
+#define MAX_HEADL_AMOUNT 100
+uniform int uHeadlightAmount;
+uniform vec3 uHeadlights[MAX_HEADL_AMOUNT];
+
+// Direzione e posizione dei fari
+uniform vec3 uHeadlightPos;
+uniform vec3 uHeadlightDir;
+uniform vec3 uHeadlightColor;
+
+// Attenuazione e cutoff
+uniform float uHeadlightC1;
+uniform float uHeadlightC2;
+uniform float uHeadlightC3;
+uniform float uHeadlightCutOff;
+uniform float uHeadlightOuterCutOff;
+
 
 vec3 LambertDiffuse(vec3 L, vec3 N)
 {
@@ -46,30 +62,48 @@ vec3 CalcPointLigth(vec3 ligthPos, vec3 N)
     return uLampLigthColor * diffuse * attenuation;    
 }
 
+vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N) {
+    vec3 lightVec = lightPos - wPos; 
+    vec3 L = normalize(lightVec);
+
+    // Controllo angolo del cono
+    float theta = dot(L, normalize(-lightDir));
+    if (theta > uHeadlightOuterCutOff) {
+        // Calcolo intensità in base all'angolo
+        float intensity = clamp((theta - uHeadlightOuterCutOff) / 
+                                 (uHeadlightCutOff - uHeadlightOuterCutOff), 0.0, 1.0);
+
+        // Calcola attenuazione
+        float distance = length(lightVec);
+        float attenuation = 1.0 / (uHeadlightC1 + uHeadlightC2 * distance + 
+                                   uHeadlightC3 * (distance * distance));
+
+        // Diffuse lighting
+        vec3 diffuse = LambertDiffuse(L, N);
+        
+        // Combinazione colore/intensità
+        return lightColor * diffuse * attenuation * intensity;
+    }
+    return vec3(0.0); // Fuori dal cono, niente luce
+}
+
 
 void main(void)
 {
-    vec4 textureColor = texture(uTexture, vTexCoord);
+    vec4 textureColor = texture(uTexture, vTexCoord); 
 
-    //Calcola luce del sole
+    // Calcola luce del sole
     vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal));
 
-    //Calcola luce dei lampioni
-    
-    float res = 0;
-    for(int i = 0; i < uLampsAmount; i++)
-    {
-        result += CalcPointLigth((vec4(uLampLights[i], 1)).xyz, normalize(vNormal));
-        //float distance = length(vec4(uLampLights[i], 1) - vec4(wPos, 1));
-        //float attenuation =  1 / (uLampC1 + (uLampC2 * distance) + (uLampC3 * distance * distance));
-
-        //res += attenuation;
+    // Calcola luce dei lampioni
+    for (int i = 0; i < uLampsAmount; i++) {
+        result += CalcPointLigth(uLampLights[i], normalize(vNormal));
     }
-    
-    
-    
-    //FragColor = vec4(0, res, 0, 1);
-    
-    FragColor = vec4(normalize(vNormal), 1);
-    FragColor = vec4(result, 1);
+
+    // Calcola luce dei fari
+    for (int i = 0; i < uHeadlightAmount; i++) {
+        result += CalcSpotLight(uHeadlights[i], uHeadlightDir, uHeadlightColor, normalize(vNormal));
+    }
+    // Colore finale
+    FragColor = vec4(result, 1.0);
 }
