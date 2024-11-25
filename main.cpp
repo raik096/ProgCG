@@ -193,6 +193,7 @@ int main(int argc, char** argv)
 	/* define the viewport  */
 	glViewport(0, 0, 800, 800);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_MULTISAMPLE);
 	glDepthRange(0.01, 1);
 	printout_opengl_glsl_info();
 
@@ -213,7 +214,7 @@ int main(int argc, char** argv)
 	std::vector<renderable> cube;
 	
 	/* carico le macchine quindi car_objects */
-    gltfLoader.load_to_renderable("assets/models/car0.glb", car, bbox_car);
+    gltfLoader.load_to_renderable("assets/models/car1.glb", car, bbox_car);
 	/* carico le lamp quindi lamp_objects */
     gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp, bbox_lamp);
 	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
@@ -226,7 +227,8 @@ int main(int argc, char** argv)
 	
 	//Setuppa porjection e view matrix
 	proj = glm::perspective(glm::radians(45.f), (float)1.0f, 0.1f, 100.f);
-	view = glm::lookAt(glm::vec3(10, 1.0f, 10), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
+	view = glm::lookAt(glm::vec3(0, 1.0f, 1.5f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
+	//std::cout << "View Matrix:\n" << glm::to_string(view) << std::endl;
 	
 	//Setuppa trackball
 	tb[0].reset();
@@ -252,11 +254,8 @@ int main(int argc, char** argv)
 	renderable r_terrain;
 	r_terrain.create();
 	game_to_renderable::to_heightfield(r, r_terrain);
-	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
+	texture terrain_texture = LoadTexture("assets/textures/grass2.png");
 
-	std::cout << "View Matrix:\n" << glm::to_string(view) << std::endl;
-	//std::cout << "r.cameramen()[3].frame[3]: \n" << glm::to_string(*(glm::vec3*)&r.cameramen()[3].frame[3]) << std::endl;
-	//std::cout << "cameramen.pos: " << glm::to_string(r.cameramen()[3].pos) << std::endl;
 
 	r.start(11, 0, 0, 20);
 	r.update();
@@ -304,19 +303,19 @@ int main(int argc, char** argv)
 	basic_shader.SetFloat("uHeadlightC2", 0.02f); // Lineare
 	basic_shader.bind("uHeadlightC3");
 	basic_shader.SetFloat("uHeadlightC3", 100.f); // Quadratica
-		check_gl_errors(__LINE__, __FILE__);
 
 	// Angoli del cono (cutoff interno ed esterno)
 	basic_shader.bind("uHeadlightCutOff");
 	basic_shader.SetFloat("uHeadlightCutOff", glm::cos(glm::radians(5.5f))); // Interno
 	basic_shader.bind("uHeadlightOuterCutOff");
 	basic_shader.SetFloat("uHeadlightOuterCutOff", glm::cos(glm::radians(50.f))); // Esterno
-		check_gl_errors(__LINE__, __FILE__);
 
 	// Carica tutti i fari in shader (cars x 2)
 	basic_shader.bind("uHeadlightAmount");
 	basic_shader.SetInt("uHeadlightAmount", r.cars().size() * 2);
-		check_gl_errors(__LINE__, __FILE__);
+	// Carica tutte le normali dei fari in shader (cars x 2)
+	basic_shader.bind("uHeadlightNAmount");
+	basic_shader.SetInt("uHeadlightNAmount", r.cars().size() * 2);
 
 	//Impostazioni shadowMapping
 	basic_shader.SetVector2("uShadowMapSize", glm::vec2(Lproj.sm_size_x, Lproj.sm_size_y));
@@ -409,9 +408,8 @@ int main(int argc, char** argv)
 			//Cars
 			for (unsigned int k = 0; k < r.cars().size(); ++k) {
 				stack.push();
-
-				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
-				stack.mult(r.cars()[k].frame);
+				
+				stack.mult(glm::scale((r.cars()[k].frame), glm::vec3(0.5f, 0.5f, 0.5f)));
 				DrawModel(car, depth_shader, stack.m());
 				stack.pop();
 			}
@@ -534,28 +532,36 @@ int main(int argc, char** argv)
 			//Cars
 			for (unsigned int k = 0; k < r.cars().size(); ++k) {
 				stack.push();
+				stack.mult(r.cars()[k].frame);
+
+				// Matrice di rotazione
+				glm::mat4 rot = glm::rotate(glm::mat4(1), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 				
-				// Posizione primo faro
-				glm::vec3 headlightPos1 = glm::vec3(glm::translate(stack.m(), glm::vec3(0.7f, 0.3f, 0.5f)) * glm::vec4(0, 0, 0, 1));
+				// Posizione primo faro 
+				glm::vec3 headlightPos1 = glm::vec3(glm::translate(stack.m(), glm::vec3(0.7f, .8f, -1.7f)) * glm::vec4(0, 0, 0, 1)); // Cambiata Y e Z
 				basic_shader.bind("uHeadlights[" + std::to_string(k * 2) + "]");
 				basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2) + "]", headlightPos1);
 
 				// Posizione secondo faro
-				glm::vec3 headlightPos2 = glm::vec3(glm::translate(stack.m(), glm::vec3(-0.7f, 0.3f, 0.5f)) * glm::vec4(0, 0, 0, 1));
+				glm::vec3 headlightPos2 = glm::vec3(glm::translate(stack.m(), glm::vec3(-0.7f, .8f, -1.7f)) * glm::vec4(0, 0, 0, 1)); // Cambiata Y e Z
 				basic_shader.bind("uHeadlights[" + std::to_string(k * 2 + 1) + "]");
 				basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2 + 1) + "]", headlightPos2);
 
-				// Direzione dei fari
-				glm::vec3 headlightDir = glm::normalize(glm::vec3(stack.m()[3]));  // Direzione del primo faro
-				//glm::vec3 headlightDir = glm::normalize(glm::vec3(stack.m() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f)));  // Direzione del primo faro
-				basic_shader.bind("uHeadlightDir");
-				basic_shader.SetVector3("uHeadlightDir", headlightDir);
-                
-				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
-				stack.mult(r.cars()[k].frame);
+				// Direzione dei fari (corretta per i fari sul cofano)
+				glm::vec3 headlightDir = glm::normalize(glm::vec3(rot * stack.m() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f))); // Ruotata di 180° su Y
+				basic_shader.bind("uHeadlightN[" + std::to_string(k * 2) + "]");
+				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k * 2) + "]", headlightDir);
+
+				basic_shader.bind("uHeadlightN[" + std::to_string(k * 2 + 1) + "]");
+				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k * 2 + 1) + "]", headlightDir);
+
+				// Disegna il modello dell'auto
+				stack.mult(glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 0.3f, 0.3f)));
+				stack.mult(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.5f, 0.0f)));
 				DrawModel(car, basic_shader, stack.m());
 				stack.pop();
 			}
+
 
 			stack.pop();
 		}
