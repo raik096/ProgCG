@@ -19,7 +19,7 @@ struct carousel_loader {
 	static void push_cameraman(NSVGpath* npath, float rd, std::vector<cameraman>& vc) {
 		cameraman  so(rd);
 		so.frame = glm::mat4(1.f);
-		so.frame[3] = glm::vec4(npath->pts[0], r()->ter().y(npath->pts[0], npath->pts[1]), npath->pts[1], 1.0);
+		so.frame[3] = glm::vec4(npath->pts[0], r()->ter().y(npath->pts[0], npath->pts[1]) + 2, npath->pts[1], 1.0);
 		vc.push_back(so);
 	}
 
@@ -78,8 +78,9 @@ struct carousel_loader {
 					for (unsigned int i = 0;i < samples_pos.size();++i) {
 						glm::vec3 d =glm::vec3 (-samples_tan[i].z, 0, samples_tan[i].x);
 						d = glm::normalize(d);
-						r._t.curbs[0].push_back(r._ter.p(samples_pos[i] + d * 2.f));
-						r._t.curbs[1].push_back(r._ter.p(samples_pos[i] - d * 2.f));
+
+						r._t.curbs[0].push_back(r._ter.p(samples_pos[i] + d * 2.f) + r._ter.dtVec3(samples_pos[i] + d *2.f)*0.2f);
+						r._t.curbs[1].push_back(r._ter.p(samples_pos[i] - d * 2.f) + r._ter.dtVec3(samples_pos[i] + d *2.f)*0.2f);
 
 						r._t.curbsNormals[0].push_back(r._ter.dtVec3(samples_pos[i] + d * 2.f));
 						r._t.curbsNormals[1].push_back(r._ter.dtVec3(samples_pos[i] - d * 2.f));

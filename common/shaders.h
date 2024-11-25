@@ -40,7 +40,7 @@ struct shader{
 
 				//Se no dai errore
 				std::cout << "No location for uniform variable " << name << std::endl;
-				exit(0);
+				//exit(0);
 			}
 
 			//Se l'avevamo già cachata restituisci ebbasta
@@ -55,6 +55,11 @@ struct shader{
 		void SetFloat(std::string uName, float value)
 		{
 			glUniform1f(uni[uName], value);
+		}
+
+		void SetVector2(std::string uName, glm::vec2 value)
+		{
+			glUniform2f(uni[uName], value.x, value.y);
 		}
 
 		void SetVector3(std::string uName, glm::vec3 value)

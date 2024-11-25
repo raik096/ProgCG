@@ -1,9 +1,11 @@
 #version 460 core
+#define MAX_LAMPS_AMOUNT 100
 
 out vec4 FragColor;
 
 in vec3 vPos;
 in vec3 wPos;
+in vec4 wCoordLS;
 in vec3 vNormal;
 in vec2 vTexCoord;
 in vec3 vColor;
@@ -13,10 +15,11 @@ uniform vec3 uColor;
 uniform sampler2D uTexture;
 
 uniform vec3 uSunDirection;
+uniform sampler2D uShadowMap;
+uniform vec2 uShadowMapSize;
+uniform float uBias;
 
-#define MAX_LAMPS_AMOUNT 100
 uniform int uLampsAmount;
-uniform vec3 LampTest;
 uniform vec3 uLampLights[MAX_LAMPS_AMOUNT];
 
 uniform vec3 uLampLigthColor;
@@ -46,17 +49,42 @@ vec3 CalcPointLigth(vec3 ligthPos, vec3 N)
     return uLampLigthColor * diffuse * attenuation;    
 }
 
+float ShadowCalculation(vec4 CoordLS)
+{
+    float storedDepth;
+	float lit = 1.0;
+
+    vec3 projCoords = wCoordLS.xyz / wCoordLS.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    float closestDepth = texture(uShadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+
+    /*
+    if(currentDepth - uBias > closestDepth)
+        lit = 0.0;
+    */
+
+    float bias = clamp(uBias*tan(acos(dot(normalize(vNormal),-uSunDirection))),uBias,0.05); 
+    for( float  x = -1.5; x <= 1.5; x+=1.0)
+		for( float y = -1.5; y <= 1.5; y+=1.0)
+			{
+				storedDepth = texture(uShadowMap,projCoords.xy+vec2(x,y)/uShadowMapSize).x;
+				if(storedDepth + bias < currentDepth)    
+					lit -= 1.0/16.0;
+			}
+
+
+    return lit;
+}
 
 void main(void)
 {
-    vec4 textureColor = texture(uTexture, vTexCoord);
-
     //Calcola luce del sole
-    vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal));
+    vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal)) * ShadowCalculation(wCoordLS);
+    float shadow = ShadowCalculation(wCoordLS);
 
     //Calcola luce dei lampioni
-    
-    float res = 0;
     for(int i = 0; i < uLampsAmount; i++)
     {
         result += CalcPointLigth((vec4(uLampLights[i], 1)).xyz, normalize(vNormal));
@@ -65,11 +93,10 @@ void main(void)
 
         //res += attenuation;
     }
-    
-    
-    
     //FragColor = vec4(0, res, 0, 1);
     
     FragColor = vec4(normalize(vNormal), 1);
     FragColor = vec4(result, 1);
+    //FragColor = vec4(shadow, shadow, shadow, 1);
+    //FragColor = textureColor;
 }

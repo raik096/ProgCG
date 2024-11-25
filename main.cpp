@@ -3,8 +3,6 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "3dparty/nanosvg/src/nanosvgrast.h"
 
-
-
 // Include OpenGL-related libraries
 #include <GL/glew.h>      // Always first for OpenGL
 #include <GLFW/glfw3.h>
@@ -35,6 +33,9 @@
 #include "common/matrix_stack.h"
 #include "common/intersection.h"
 #include "common/trackball.h"
+#include "common/trackball.h"
+#include "common/projector.h"
+#include "common/frame_buffer_object.h"
 
 /* creo un array di due oggetti di tipo trackball e curr_tb mi tiene traccia dell'indice attivo tralle due tb*/
 trackball tb[2];
@@ -48,6 +49,14 @@ glm::mat4 view;
 
 matrix_stack stack;
 float scaling_factor = 1.0;
+
+//Shadow Mapping del sole
+float depth_bias = 0;
+float k_plane_approx = 0.5;
+
+frame_buffer_object ligthDepthFbo;
+projector Lproj;
+glm::vec4 Ldir;
 
 //Callback per fare gestire il resize della finestra
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -120,6 +129,13 @@ int main(int argc, char** argv)
 		glfwTerminate();
 		return -1;
 	}
+
+	/* Make the window's context current */
+	glfwMakeContextCurrent(window);
+
+	glewInit();
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
 	/* declare the callback functions on mouse events */
 	if (glfwRawMouseMotionSupported())
 		glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
@@ -129,91 +145,86 @@ int main(int argc, char** argv)
 	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetKeyCallback(window, key_callback);
 
-	/* Make the window's context current */
-	glfwMakeContextCurrent(window);
-
-	glewInit();
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	printout_opengl_glsl_info();
-
 	//Setuppiamo OPENGL---------------------------------------------
 	/* define the viewport  */
 	glViewport(0, 0, 800, 800);
-
 	glEnable(GL_DEPTH_TEST);
+	glDepthRange(0.01, 1);
+	printout_opengl_glsl_info();
 
+	//Carichiamo le risorse (shaders, textures, modelli, matrici...) ---------------------------------------------
+	shader basic_shader;
+	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
+	
+	shader depth_shader;
+	depth_shader.create_program("shaders/depth.vert", "shaders/depth.frag");
 
-	//Setuppiamo il carosello---------------------------------------------
+	gltf_loader gltfLoader;
+
+	box3 bbox_lamp, bbox_car, bbox_tree, bbox_drone, bbox_cube;
+	std::vector<renderable> lamp;
+	std::vector<renderable> car;
+	std::vector<renderable> tree;
+	std::vector<renderable> drone;
+	std::vector<renderable> cube;
+	
+	/* carico le macchine quindi car_objects */
+    gltfLoader.load_to_renderable("assets/models/car0.glb", car, bbox_car);
+	/* carico le lamp quindi lamp_objects */
+    gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp, bbox_lamp);
+	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
+	/* carico gli alberi quindi tree_objects */
+	gltfLoader.load_to_renderable("assets/models/trees.glb", tree, bbox_tree);
+	/* carico i droni quindi droni_objects */
+	gltfLoader.load_to_renderable("assets/models/drone.glb", drone, bbox_drone);
+	/* carico i cube per testare */
+	gltfLoader.load_to_renderable("assets/models/cube.glb", cube, bbox_cube);
+	
+	//Setuppa porjection e view matrix
+	proj = glm::perspective(glm::radians(45.f), (float)1.0f, 0.1f, 100.f);
+	view = glm::lookAt(glm::vec3(10, 1.0f, 10), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
+	
+	//Setuppa trackball
+	tb[0].reset();
+	tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
+	curr_tb = 0;
+
+	//Setup della scena	---------------------------------------------
 	race r;
 	carousel_loader::load("small_test.svg", "terrain_256.png", r);
 
 	//add 10 cars
 	for (int i = 0; i < 10; ++i)
 		r.add_car();
-
-	renderable fram = shape_maker::frame();
-	renderable r_cube = shape_maker::cube();
-
+	
 	renderable r_track;
 	r_track.create();
 	game_to_renderable::to_track(r, r_track);
+	texture track_texture = LoadTexture("common/carousel/street_tile.png");
+
 
 	renderable r_terrain;
 	r_terrain.create();
 	game_to_renderable::to_heightfield(r, r_terrain);
+	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
 
-	renderable r_trees;
-	r_trees.create();
-	game_to_renderable::to_tree(r, r_trees);
-
-	//renderable r_lamps;
-	//r_lamps.create();
-	//game_to_renderable::to_lamps(r, r_lamps);
-
-	gltf_loader gltfLoader;
-
-	box3 bbox_lamps, bbox_cars, bbox_trees, bbox_drones;
-	std::vector<renderable> lamp_objects;
-	std::vector<renderable> car_objects;
-	std::vector<renderable> tree_objects;
-	std::vector<renderable> drone_objects;
-
-	/* carico le macchine quindi car_objects */
-    gltfLoader.load_to_renderable("assets/models/car0.glb", car_objects, bbox_cars);
-	/* carico le lamp quindi lamp_objects */
-    gltfLoader.load_to_renderable("assets/models/lamp.glb", lamp_objects, bbox_lamps);
-	/* carico gli alberi quindi tree_objects */
-	gltfLoader.load_to_renderable("assets/models/trees.glb", tree_objects, bbox_trees);
-	/* carico i droni quindi droni_objects */
-	gltfLoader.load_to_renderable("assets/models/drone.glb", drone_objects, bbox_drones);
-
-
-
-	shader basic_shader;
-	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
-
-	/* use the program shader "program_shader" */
-	glUseProgram(basic_shader.program);
-
-	tb[0].reset();
-	tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
-	curr_tb = 0;
-
-	proj = glm::perspective(glm::radians(45.f), 1.f, 0.1f, 100.f);
-	view = glm::lookAt(glm::vec3(0, 1.f, 1.5), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
-	basic_shader.SetMatrix4x4("uProj", proj);
-	basic_shader.SetMatrix4x4("uView", view);
-
-	r.start(11, 0, 0, 300);
+	r.start(8, 0, 0, 200);
 	r.update();
 
-	matrix_stack stack;
+	/* initial light direction */
+	Ldir = glm::vec4(0.0, 1.0, 0.0, 0.0);
+	k_plane_approx = 0.5;
 
-	texture lamp_texture = LoadTexture("assets/textures/lampColor.png");
-	texture terrain_texture = LoadTexture("common/carousel/grass_tile.png");
-	texture track_texture = LoadTexture("common/carousel/street_tile.png");
+	/* light projection */
+	Lproj.sm_size_x = 1024;
+	Lproj.sm_size_y = 1024;
+	Lproj.distance_light = 0.5;
+	depth_bias = 0;
+	
+	ligthDepthFbo.create(Lproj.sm_size_x, Lproj.sm_size_y,true);
 
 	//Impostazioni luce della scena
+	glUseProgram(basic_shader.program);
 	basic_shader.bind("uLampLigthColor");
 	basic_shader.SetVector3("uLampLigthColor", glm::vec3(1, 0.97, 0.76));
 	basic_shader.bind("uLampC1");
@@ -222,135 +233,195 @@ int main(int argc, char** argv)
 	basic_shader.SetFloat("uLampC2", 0.01f);
 	basic_shader.bind("uLampC3");
 	basic_shader.SetFloat("uLampC3", 1000.0f);
-
-
-	basic_shader.SetVector3("LampTest", r.lamps()[0].pos);
+	
 	//Carica tutti i lampioni in shader
 	basic_shader.bind("uLampsAmount");
 	basic_shader.SetInt("uLampsAmount", r.lamps().size());
 
-	glActiveTexture(GL_TEXTURE0);
-	
+	basic_shader.SetVector2("uShadowMapSize", glm::vec2(Lproj.sm_size_x, Lproj.sm_size_y));
+	basic_shader.SetFloat("uBias", 0.01f);
+
 	while (!glfwWindowShouldClose(window))
 	{
 		/* Render here */
-		glClearColor(0.3f, 0.3f, 0.3f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		GLint viewport[4];
+		glGetIntegerv(GL_VIEWPORT, viewport);
+
+		//glClearColor(0.3f, 0.3f, 0.3f, 1.f);               
 		check_gl_errors(__LINE__, __FILE__);
 
-		//Aggiorna viewMatrix della camera
-		basic_shader.SetMatrix4x4("uProj", proj);
-		basic_shader.SetMatrix4x4("uView", view * tb[0].matrix());
-
 		r.update();
-		basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
-		stack.load_identity();
-		stack.push();
-		//stack.mult(tb[0].matrix());
-		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-		glUniform3f(basic_shader["uColor"], -1.f, 0.6f, 0.f);
-		fram.bind();
-		glDrawArrays(GL_LINES, 0, 6);
-
-		glColor3f(0, 0, 1);
-		glBegin(GL_LINES);
-		glVertex3f(0, 0, 0);
-		glVertex3f(r.sunlight_direction().x, r.sunlight_direction().y, r.sunlight_direction().z);
-		glEnd();
-
-
-		float s = 1.f / r.bbox().diagonal();
-		glm::vec3 c = r.bbox().center();
-
-		stack.mult(glm::scale(glm::mat4(1.f), glm::vec3(s)));
-		stack.mult(glm::translate(glm::mat4(1.f), -c));
-
-
-		glDepthRange(0.01, 1);
-		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-		glUniform3f(basic_shader["uColor"], 1, 1, 1.0);
-
-		BindTexture(basic_shader, "uTexture", terrain_texture, 0);
-		r_terrain.bind();
-
-		glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
-		glDepthRange(0.0, 1);
-		
-		car_objects[0].bind();
-		for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
-			stack.push();
+		//DrawModel(car, basic_shader, glm::mat4(1.0f));
+		//Depth Pass --------------------------------------------------------------------------------------
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, ligthDepthFbo.id_fbo);
+			glViewport(0, 0, Lproj.sm_size_x, Lproj.sm_size_y);
+			glUseProgram(depth_shader.program);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			
-			// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
-			stack.mult(r.cars()[ic].frame * car_objects[0].transform);
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-    		glBindTexture(GL_TEXTURE_2D, car_objects[0].mater.base_color_texture);
-			glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-			glDrawElements(car_objects[0]().mode, car_objects[0]().count, car_objects[0]().itype, 0);	
+			glm::vec3 ligthUp = glm::cross(r.sunlight_direction(), glm::vec3(1, 0, 0));
+			Lproj.view_matrix = glm::lookAt(r.sunlight_direction() * Lproj.distance_light, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0, 1, 0));
+			Lproj.set_projection(Lproj.view_matrix, 0.5);
+			
+			depth_shader.SetMatrix4x4("uLightMatrix", Lproj.light_matrix());
+			depth_shader.SetFloat("uPlaneApprox", k_plane_approx);
+
+			stack.load_identity();
+			stack.push();
+
+			//Terrain
+			stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
+			glm::vec3 c = r.bbox().center();
+			c.y = 0;
+			stack.mult(glm::translate(glm::mat4(1), -c));
+
+			r_terrain.bind();
+			depth_shader.SetMatrix4x4("uModel", stack.m());
+			BindTexture(depth_shader, "uTexture", terrain_texture, 1);
+			glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
+
+			//Track
+			r_track.bind();
+			depth_shader.SetMatrix4x4("uModel", stack.m());
+			BindTexture(depth_shader, "uTexture", track_texture, 1);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
+
+			//Drones
+			for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
+				stack.push();
+				stack.mult(r.cameramen()[ic].frame);
+				stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
+				DrawModel(drone, depth_shader, stack.m());
+				stack.pop();
+			}
+
+			//Trees
+			for (stick_object l : r.trees())
+			{
+				stack.push();
+				stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
+				DrawModel(tree, depth_shader, stack.m());
+				stack.pop();
+			}
+
+			//Lampioni
+			lamp[0].bind();
+			for (int i = 0;  i < r.lamps().size(); i++)
+			{
+				stick_object l = r.lamps()[i];
+				stack.push();
+				stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.2)));
+
+				// Renderizza l'oggetto
+				glUniformMatrix4fv(depth_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+				glDrawElements(lamp[0]().mode, lamp[0]().count, lamp[0]().itype, 0);
+				stack.pop(); // Ripristina lo stato precedente
+			}
+			//Cars
+			for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
+				stack.push();
+				
+				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
+				stack.mult(r.cars()[ic].frame);
+				DrawModel(car, depth_shader, stack.m());
+				stack.pop();
+			}
+
+			stack.pop();
+			glUseProgram(0);
+		}
+		check_gl_errors(__LINE__, __FILE__);
+
+		//Rendering Pass --------------------------------------------------------------------------------------
+		if(true){
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+			glUseProgram(basic_shader.program);
+			basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
+			basic_shader.SetVector3("uColor", glm::vec3(1, 1, 1));
+
+			glActiveTexture(GL_TEXTURE0);
+    		glBindTexture(GL_TEXTURE_2D, ligthDepthFbo.id_tex);
+			basic_shader.SetInt("uShadowMap", 0);
+			basic_shader.SetMatrix4x4("uLightMatrix", Lproj.light_matrix());
+
+
+			glClearColor(0.3f, 0.3f, 0.3f, 1.f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+			//Aggiorna camera
+			basic_shader.SetMatrix4x4("uProj", proj);
+			basic_shader.SetMatrix4x4("uView", view * tb[0].matrix());
+
+			stack.load_identity();
+			stack.push();
+
+			//Terrain
+			stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
+			glm::vec3 c = r.bbox().center();
+			c.y = 0;
+			stack.mult(glm::translate(glm::mat4(1), -c));
+
+			r_terrain.bind();
+			basic_shader.SetMatrix4x4("uModel", stack.m());
+			BindTexture(basic_shader, "uTexture", terrain_texture, 1);
+			glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
+
+			//Track
+			r_track.bind();
+			basic_shader.SetMatrix4x4("uModel", stack.m());
+			BindTexture(basic_shader, "uTexture", track_texture, 1);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
+
+			//Drones
+			for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
+				stack.push();
+				stack.mult(r.cameramen()[ic].frame);
+				stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
+				DrawModel(drone, basic_shader, stack.m());
+				stack.pop();
+			}
+
+			//Trees
+			for (stick_object l : r.trees())
+			{
+				stack.push();
+				stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
+				DrawModel(tree, basic_shader, stack.m());
+				stack.pop();
+			}
+
+			//Lampioni
+			lamp[0].bind();
+			BindTexture(basic_shader, "uTexture", lamp_texture, 1);
+			for (int i = 0;  i < r.lamps().size(); i++)
+			{
+				stick_object l = r.lamps()[i];
+				stack.push();
+				stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.2)));
+
+				basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
+				basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
+
+				// Renderizza l'oggetto
+				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
+				glDrawElements(lamp[0]().mode, lamp[0]().count, lamp[0]().itype, 0);
+				stack.pop(); // Ripristina lo stato precedente
+			}
+
+			//Cars
+			for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
+				stack.push();
+				
+				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
+				stack.mult(r.cars()[ic].frame);
+				DrawModel(car, basic_shader, stack.m());
+				stack.pop();
+			}
+
 			stack.pop();
 		}
-
-		//fram.bind();
-		drone_objects[0].bind();
-		for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
-			stack.push();
-			stack.mult(r.cameramen()[ic].frame * drone_objects[0].transform);
-			stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glBindTexture(GL_TEXTURE_2D, drone_objects[0].mater.base_color_texture);
-			glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-			glDrawElements(drone_objects[0].mode, drone_objects[0]().count, drone_objects[0]().itype, 0);
-			stack.pop();
-		}
-		glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-
-		BindTexture(basic_shader, "uTexture", track_texture, 0);
-		r_track.bind();
-		glPointSize(3.0);
-		glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
-		glPointSize(1.0);
-		
-		r_trees.bind();
-		glUniform3f(basic_shader["uColor"], 0.f, 1.0f, 0.f);
-		glDrawArrays(GL_LINES, 0, r_trees.vn);
-		
-		BindTexture(basic_shader, "uTexture", lamp_texture, 0);	
-		//Disegno i lampioni		
-		lamp_objects[0].bind();
-		for (int i = 0;  i < r.lamps().size(); i++)
-		{
-			stick_object l = r.lamps()[i];
-
-			//std::cout << "Posizione lampione: " << glm::to_string(l.pos) << std::endl;
-			stack.push();
-			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-
-			basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
-			basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
-
-			// Imposta il colore del lampione
-			glUniform3f(basic_shader["uColor"], 1.0f, 1.0f, 1.0f);
-			// Renderizza l'oggetto
-			glDrawElements(lamp_objects[0]().mode, lamp_objects[0]().count, lamp_objects[0]().itype, 0);
-			stack.pop(); // Ripristina lo stato precedente
-		}
-
-		tree_objects[0].bind();
-		for (stick_object l : r.trees())
-		{
-			stack.push();
-			//stack.mult(glm::translate(tree_objects[0].transform, l.pos));
-			stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
-			glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-			glBindTexture(GL_TEXTURE_2D, tree_objects[0].mater.base_color_texture);
-			glUniform3f(basic_shader["uColor"], 0.95f, 0.99f, 0.68f);
-			glDrawElements(tree_objects[0]().mode, tree_objects[0]().count, tree_objects[0]().itype, 0);
-			stack.pop();
-
-		}
-
-		stack.pop();
+		check_gl_errors(__LINE__, __FILE__);
 
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);
@@ -363,4 +434,3 @@ int main(int argc, char** argv)
 	glfwTerminate();
 	return 0;
 }
-
