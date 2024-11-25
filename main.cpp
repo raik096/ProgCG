@@ -58,6 +58,11 @@ frame_buffer_object ligthDepthFbo;
 projector Lproj;
 glm::vec4 Ldir;
 
+//Gestione delle viste dei cameramans
+//Queste variabili sono importanti perchè se stiamo guardando da un camMan dobbiamo aggiornare la viewMatrix adeguatamente a ogni loop
+int cameramanFocus = 0; //Id del cameraman dal quale vogliamo vedere.
+bool watchCameras = false; //Se true vogliamo guardare attreverso gli occhi del cameraman, se false vogliamo usare la trackball per manipolare la camera "principale"
+
 //Callback per fare gestire il resize della finestra
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -120,6 +125,11 @@ void change_view(const race& r)
 		view = glm::lookAt(glm::vec3(r.cameramen()[1].frame[3]), 
 						   glm::vec3(r.cameramen()[1].frame[3] - r.cameramen()[1].frame[2]), 
 						   glm::vec3(r.cameramen()[1].frame[1]));
+
+
+		glm::vec3 c = r.bbox().center();
+		c.y = 0;
+		view = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cameramen()[1].frame);
 		//view += glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
 		//view = glm::inverse(glm::translate(r.cameramen()[3].frame, glm::vec(0.0	f, 1.0f, 0.0f)));
 
@@ -138,18 +148,50 @@ void change_view(const race& r)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	/* every time any key is presse it switch from controlling trackball tb[0] to tb[1] and viceversa */
-	if (action == GLFW_PRESS) 
-		curr_tb = 1 - curr_tb;
-		if (key == GLFW_KEY_C) {
-			if (change_cam) {
-				change_cam = false; 
-				return;
-			}
-			if (!change_cam) {
-				change_cam = true; 
-				return;
-			}
+	if (action == GLFW_PRESS)
+	{
+		switch (key)
+		{
+			case GLFW_KEY_0:
+				watchCameras = true;
+				cameramanFocus = 0;
+				break;
+			
+			case GLFW_KEY_1:
+				watchCameras = true;
+				cameramanFocus = 1;
+				break;
+
+			
+			case GLFW_KEY_2:
+				watchCameras = true;
+				cameramanFocus = 2;
+				break;
+
+			
+			case GLFW_KEY_3:
+				watchCameras = true;
+				cameramanFocus = 3;
+				break;
+
+			default:
+				watchCameras = false;
+				break;
 		}
+	}
+	/*
+	curr_tb = 1 - curr_tb;
+	if (key == GLFW_KEY_C) {
+		if (change_cam) {
+			change_cam = false; 
+			return;
+		}
+		if (!change_cam) {
+			change_cam = true; 
+			return;
+		}
+	}
+	*/
 }
 
 
@@ -236,8 +278,6 @@ int main(int argc, char** argv)
 	curr_tb = 0;
 
 	//Setup della scena	---------------------------------------------
-
-	//Setuppiamo il carosello---------------------------------------------
 	race r;
 	carousel_loader::load("small_test.svg", "terrain_256.png", r);
 
@@ -256,9 +296,11 @@ int main(int argc, char** argv)
 	game_to_renderable::to_heightfield(r, r_terrain);
 	texture terrain_texture = LoadTexture("assets/textures/grass2.png");
 
-
 	r.start(11, 0, 0, 20);
 	r.update();
+
+	//Camera principale
+	glm::mat4 mainCamera = glm::lookAt(glm::vec3(0, 1.0f, 1.5f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
 
 	/* initial light direction */
 	Ldir = glm::vec4(0.0, 1.0, 0.0, 0.0);
@@ -437,27 +479,35 @@ int main(int argc, char** argv)
 			glClearColor(0.3f, 0.3f, 0.3f, 1.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-            //Aggiorna viewMatrix della camera
-            basic_shader.SetMatrix4x4("uProj", proj);
+			glm::vec3 c = r.bbox().center();
+			c.y = 0;
+			if(watchCameras)
+			{
+				view = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cameramen()[cameramanFocus].frame);
+			}
+			else
+			{
+				view = mainCamera * tb[0].matrix();
+			}
+
+            /*Aggiorna viewMatrix della camera
             // Aggiorna la viewMatrix solo se necessario
             if (change_cam != prev_change_cam) {
                 change_view(r);  // Aggiorna la vista se la telecamera è cambiata
                 prev_change_cam = change_cam;  // Memorizza lo stato precedente
             }
-            basic_shader.SetMatrix4x4("uView", view * tb[0].matrix());
             //std::cout << "Actual View Matrix:\n" << glm::to_string(view * tb[0].matrix()) << std::endl;
+			*/
 
 			//Aggiorna camera
 			basic_shader.SetMatrix4x4("uProj", proj);
-			basic_shader.SetMatrix4x4("uView", view * tb[0].matrix());
+			basic_shader.SetMatrix4x4("uView", view );
 
 			stack.load_identity();
 			stack.push();
 
 			//Terrain
 			stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
-			glm::vec3 c = r.bbox().center();
-			c.y = 0;
 			stack.mult(glm::translate(glm::mat4(1), -c));
 
 			r_terrain.bind();
