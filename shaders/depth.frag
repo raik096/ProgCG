@@ -1,7 +1,6 @@
 #version 460 core  
 out vec4 color; 
 
-uniform int uRenderMode;
 uniform float uPlaneApprox;
 uniform sampler2D uTexture;
 
