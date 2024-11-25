@@ -1,5 +1,4 @@
 #version 460 core
-#define MAX_LAMPS_AMOUNT 100
 
 out vec4 FragColor;
 
@@ -19,7 +18,9 @@ uniform sampler2D uShadowMap;
 uniform vec2 uShadowMapSize;
 uniform float uBias;
 
+#define MAX_LAMPS_AMOUNT 100
 uniform int uLampsAmount;
+uniform vec3 LampTest;
 uniform vec3 uLampLights[MAX_LAMPS_AMOUNT];
 
 uniform vec3 uLampLigthColor;
@@ -30,6 +31,10 @@ uniform float uLampC3; //Quadratico
 #define MAX_HEADL_AMOUNT 100
 uniform int uHeadlightAmount;
 uniform vec3 uHeadlights[MAX_HEADL_AMOUNT];
+
+#define MAX_HEADL_AMOUNT 100
+uniform int uHeadlightNAmount;
+uniform vec3 uHeadlightN[MAX_HEADL_AMOUNT];
 
 // Direzione e posizione dei fari
 uniform vec3 uHeadlightPos;
@@ -65,6 +70,29 @@ vec3 CalcPointLigth(vec3 ligthPos, vec3 N)
     return uLampLigthColor * diffuse * attenuation;    
 }
 
+float ShadowCalculation(vec4 CoordLS)
+{
+    float storedDepth;
+	float lit = 1.0;
+    vec3 projCoords = wCoordLS.xyz / wCoordLS.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(uShadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+    /*
+    if(currentDepth - uBias > closestDepth)
+        lit = 0.0;
+    */
+    float bias = clamp(uBias*tan(acos(dot(normalize(vNormal),-uSunDirection))),uBias,0.05); 
+    for( float  x = -1.5; x <= 1.5; x+=1.0)
+		for( float y = -1.5; y <= 1.5; y+=1.0)
+			{
+				storedDepth = texture(uShadowMap,projCoords.xy+vec2(x,y)/uShadowMapSize).x;
+				if(storedDepth + bias < currentDepth)    
+					lit -= 1.0/16.0;
+			}
+    return lit;
+}
+
 vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N) {
     vec3 lightVec = lightPos - wPos; 
     vec3 L = normalize(lightVec);
@@ -90,42 +118,11 @@ vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N) {
     return vec3(0.0); // Fuori dal cono, niente luce
 }
 
-float ShadowCalculation(vec4 CoordLS)
-{
-    float storedDepth;
-	float lit = 1.0;
-
-    vec3 projCoords = wCoordLS.xyz / wCoordLS.w;
-    projCoords = projCoords * 0.5 + 0.5;
-
-    float closestDepth = texture(uShadowMap, projCoords.xy).r;
-    float currentDepth = projCoords.z;
-
-    /*
-    if(currentDepth - uBias > closestDepth)
-        lit = 0.0;
-    */
-
-    float bias = clamp(uBias*tan(acos(dot(normalize(vNormal),-uSunDirection))),uBias,0.05); 
-    for( float  x = -1.5; x <= 1.5; x+=1.0)
-		for( float y = -1.5; y <= 1.5; y+=1.0)
-			{
-				storedDepth = texture(uShadowMap,projCoords.xy+vec2(x,y)/uShadowMapSize).x;
-				if(storedDepth + bias < currentDepth)    
-					lit -= 1.0/16.0;
-			}
-
-
-    return lit;
-}
-
 
 void main(void)
 {
-    //Calcola luce del sole
     vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal)) * ShadowCalculation(wCoordLS);
     float shadow = ShadowCalculation(wCoordLS);
-
     // Calcola luce dei lampioni
     for (int i = 0; i < uLampsAmount; i++) {
         result += CalcPointLigth(uLampLights[i], normalize(vNormal));
@@ -133,8 +130,10 @@ void main(void)
 
     // Calcola luce dei fari
     for (int i = 0; i < uHeadlightAmount; i++) {
-        result += CalcSpotLight(uHeadlights[i], uHeadlightDir, uHeadlightColor, normalize(vNormal));
+        //qui sto usando la stessa direzione per tutti le luci!!!
+        result += CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal));
     }
     // Colore finale
+    //FragColor = vec4(normalize(vNormal), 1);
     FragColor = vec4(result, 1.0);
 }
