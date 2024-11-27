@@ -19,7 +19,32 @@ struct texture {
 		ed impostare tutti i parametri perche' sia effettivamente attiva
 		per renderizzarla 
 	 */	
-	GLuint load(std::string name, GLuint tu) {
+	GLuint loadPT(std::string name, GLuint tu) {
+		unsigned char * data;
+		stbi_set_flip_vertically_on_load(true);
+		data = stbi_load(name.c_str(), &x_size, &y_size, &n_components, 0);
+		//stbi__vertical_flip(data, x_size, y_size, n_components);
+		/* mi serve per attivare la texture sull'unita' specificata */
+		glActiveTexture(GL_TEXTURE0 + tu);
+		glGenTextures(1, &id);
+		glBindTexture(GL_TEXTURE_2D, id);
+		int channels;
+		switch (n_components) {
+		case 1: channels = GL_RED; break;
+		case 3: channels = GL_RGB; break;
+		case 4: channels = GL_RGBA; break;
+		default: assert(0);
+		}
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x_size, y_size, 0, channels, GL_UNSIGNED_BYTE, data);
+		stbi_image_free(data);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		return id;
+	}
+		GLuint load(std::string name, GLuint tu) {
 		unsigned char * data;
 		stbi_set_flip_vertically_on_load(true);
 		data = stbi_load(name.c_str(), &x_size, &y_size, &n_components, 0);
