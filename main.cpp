@@ -122,9 +122,6 @@ void change_view(const race& r)
 		glm::vec3 c = r.bbox().center();
 		c.y = 0;
 		view = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cameramen()[1].frame);
-		//COORDINATE COMERAMEN 1
-		//Actual View Matrix:
-		//mat4x4((7.927183, 0.000000, 0.000000, 0.000000), (0.000000, 6.595815, 4.397210, 0.000000), (0.000000, -4.397210, 6.595815, 0.000000), (2.327531, 0.731998, -1.314777, 1.000000))	
     } else {
         // Se la matrice non e' vuota vuoldire che voglio ripristinare quella iniziale
         if (backupview != glm::mat4(1.0f)) {
@@ -341,25 +338,10 @@ int main(int argc, char** argv)
 /*
 */
 	// PROJECTIVE TEXTURE slot 0
-	unsigned int headlights_texture;
-	glGenTextures(1, &headlights_texture);
-	glBindTexture(GL_TEXTURE_2D, headlights_texture);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	int t_width, t_height, nrChannels;
-	unsigned char *data = stbi_load("assets/textures/light.png", &t_width, &t_height, &nrChannels, 0);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, t_width, t_height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-
-	BindTextureId(basic_shader, "uHeadlightsTexture", headlights_texture, 0);
+	texture headlights_texture = LoadTexturePT("assets/textures/light.png");
+	BindTexture(basic_shader, "uHeadlightsTexture", headlights_texture, 0);
 	
-	float fov = glm::radians(120.0f); // Campo visivo più stretto
-	float aspectRatio = 0.3f;
-	float nearPlane = 0.5f;
-	float farPlane = 0.7f;  // Distanza massima ridotta
+	float fov = glm::radians(120.0f), aspectRatio = 0.3f, nearPlane = 0.5f, farPlane = 0.7f; 
 
 	glm::mat4 projectionMatrix = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
 	basic_shader.bind("uLPProj");
