@@ -140,11 +140,11 @@ void main(void)
     for (int i = 0; i < uLampsAmount; i++)
         result += CalcPointLight(uLampLights[i], normalize(vNormal));
 
-    float maxDistance = 0.05;
+    float maxDistance = 0.1;
     // Calcolo dell'intensità dei fari nel ciclo
     for (int i = 0; i < min(uHeadlightAmount, 10); i++) {
         float intensity = CalculateHeadlightIntensity(vProjTexCoord[i], wPos, uProjectorPos[i], uProjectorDir[i], uHeadlightsTexture, maxDistance);
-        result += intensity * 0.5;
+        result += intensity * 0.1;
     }
 
     // Calcola luce dei fari (spotlights)
