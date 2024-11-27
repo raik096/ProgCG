@@ -13,13 +13,13 @@ texture LoadTexture(std::string texPath)
 {
 	texture texture;
 	GLuint id = texture.load(texPath, 0);
-	if (id == 0) {
-		std::cerr << "Errore nel caricamento della texture " << texPath  << std::endl;
-	}
-	else {
-		std::cout << "Texture "<< texPath <<" caricata correttamente" << std::endl;
-	}
+    return texture;
+}
 
+texture LoadTexturePT(std::string texPath)
+{
+	texture texture;
+	GLuint id = texture.loadPT(texPath, 0);
     return texture;
 }
 
@@ -46,8 +46,8 @@ void DrawModel(std::vector<renderable>& obj, shader& shader, const glm::mat4& tr
 	{
 		obj[i].bind();
 		shader.SetMatrix4x4("uModel", transform * obj[i].transform);
-		
-		BindTextureId(shader, "uTexture", obj[i].mater.base_color_texture, 1);
+		BindTextureId(shader, "uTexture", obj[i].mater.base_color_texture, 1);		
+		//shader.SetVector3("uColor", glm::vec3(1.f, 1.f, 1.f));
 		glDrawElements(obj[i]().mode, obj[i]().count, obj[i]().itype, 0);	
 	}
 		
