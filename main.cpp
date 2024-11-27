@@ -451,13 +451,16 @@ int main(int argc, char** argv)
 */
 	// PROJECTIVE TEXTURE slot 0
 	texture headlights_texture = LoadTexturePT("assets/textures/light.png");
+	basic_shader.bind("uHeadlightsTexture");
 	BindTexture(basic_shader, "uHeadlightsTexture", headlights_texture, 0);
 	
+		check_gl_errors(__LINE__, __FILE__);
 	float fov = glm::radians(120.0f), aspectRatio = 0.3f, nearPlane = 0.5f, farPlane = 0.7f; 
 
 	glm::mat4 projectionMatrix = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
 	basic_shader.bind("uLPProj");
 	basic_shader.SetMatrix4x4("uLPProj", projectionMatrix);
+		check_gl_errors(__LINE__, __FILE__);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -465,7 +468,7 @@ int main(int argc, char** argv)
 		GLint viewport[4];
 		glGetIntegerv(GL_VIEWPORT, viewport);
 
-		//glClearColor(0.3f, 0.3f, 0.3f, 1.f);               
+		//glClearColor(0.3f, 0.3f, 0.3f, 1.f);
 		check_gl_errors(__LINE__, __FILE__);
 
 		r.update();
@@ -617,6 +620,7 @@ int main(int argc, char** argv)
 
 	
 				glm::mat4 viewMatrix = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[k].frame);
+				
 
 				basic_shader.bind("uProjectorPos[" + std::to_string(k) + "]");
 				basic_shader.SetVector3("uProjectorPos[" + std::to_string(k) + "]", headlightPos1);
