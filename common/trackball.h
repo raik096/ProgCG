@@ -118,6 +118,7 @@ public:
 				}
 			}
 		}
+		
 		if (is_dragging) {
 
 			double dx = xpos - prev_xpos;
@@ -147,7 +148,6 @@ public:
 		is_dragging = false;
 	}
 
-
 	void mouse_middle_press(glm::mat4 proj, glm::mat4 view, double xpos, double ypos) {
 		glm::vec3 int_point;
 		if (cursor_sphere_intersection(proj, view, int_point, xpos, ypos)) {
@@ -155,9 +155,11 @@ public:
 			is_trackball_dragged = true;
 		}
 	}
+
 	void mouse_middle_release() {
 		is_trackball_dragged = false;
 	}
+
 	void mouse_scroll(double xoffset, double yoffset)
 	{
 		changed = true;
