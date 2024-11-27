@@ -213,25 +213,9 @@ void change_view(const race& r)
 {
     if (change_cam) {
         backupview = view;
-		
-		//view = r.cameramen()[3].frame;
-		//view[0] = glm::vec4(0, 0, 0, 0);
-		view = glm::lookAt(glm::vec3(r.cameramen()[1].frame[3]), 
-						   glm::vec3(r.cameramen()[1].frame[3] - r.cameramen()[1].frame[2]), 
-						   glm::vec3(r.cameramen()[1].frame[1]));
-
-
 		glm::vec3 c = r.bbox().center();
 		c.y = 0;
 		view = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cameramen()[1].frame);
-		//view += glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-		//view = glm::inverse(glm::translate(r.cameramen()[3].frame, glm::vec(0.0	f, 1.0f, 0.0f)));
-
-	
-		//COORDINATE COMERAMEN 1
-		//Actual View Matrix:
-		//mat4x4((7.927183, 0.000000, 0.000000, 0.000000), (0.000000, 6.595815, 4.397210, 0.000000), (0.000000, -4.397210, 6.595815, 0.000000), (2.327531, 0.731998, -1.314777, 1.000000))
-	
     } else {
         // Se la matrice non e' vuota vuoldire che voglio ripristinare quella iniziale
         if (backupview != glm::mat4(1.0f)) {
@@ -255,37 +239,21 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 				watchCameras = true;
 				cameramanFocus = 1;
 				break;
-
 			
 			case GLFW_KEY_2:
 				watchCameras = true;
 				cameramanFocus = 2;
 				break;
-
 			
 			case GLFW_KEY_3:
 				watchCameras = true;
 				cameramanFocus = 3;
 				break;
-
 			default:
 				watchCameras = false;
 				break;
 		}
 	}
-	/*
-	curr_tb = 1 - curr_tb;
-	if (key == GLFW_KEY_C) {
-		if (change_cam) {
-			change_cam = false; 
-			return;
-		}
-		if (!change_cam) {
-			change_cam = true; 
-			return;
-		}
-	}
-	*/
 }
 
 int main(int argc, char** argv)
@@ -328,7 +296,7 @@ int main(int argc, char** argv)
 	/* define the viewport  */
 	glViewport(0, 0, 800, 800);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_MULTISAMPLE);
 	glDepthRange(0.01, 1);
 	printout_opengl_glsl_info();
 
@@ -372,6 +340,8 @@ int main(int argc, char** argv)
 	curr_tb = 0;
 
 	//Setup della scena	---------------------------------------------
+
+	//Setuppiamo il carosello---------------------------------------------
 	race r;
 	carousel_loader::load("small_test.svg", "terrain_256.png", r);
 
@@ -392,8 +362,7 @@ int main(int argc, char** argv)
 
 	r.start(11, 0, 0, 20);
 	r.update();
-
-	//Camera principale
+		//Camera principale
 	glm::mat4 mainCamera = glm::lookAt(glm::vec3(0, 1.0f, 1.5f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
 
 	/* initial light direction */
@@ -478,6 +447,17 @@ int main(int argc, char** argv)
 
 	bool prev_change_cam = change_cam;
 	//std::vector glm::vec3> cameramanPosition
+/*
+*/
+	// PROJECTIVE TEXTURE slot 0
+	texture headlights_texture = LoadTexturePT("assets/textures/light.png");
+	BindTexture(basic_shader, "uHeadlightsTexture", headlights_texture, 0);
+	
+	float fov = glm::radians(120.0f), aspectRatio = 0.3f, nearPlane = 0.5f, farPlane = 0.7f; 
+
+	glm::mat4 projectionMatrix = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
+	basic_shader.bind("uLPProj");
+	basic_shader.SetMatrix4x4("uLPProj", projectionMatrix);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -489,6 +469,7 @@ int main(int argc, char** argv)
 		check_gl_errors(__LINE__, __FILE__);
 
 		r.update();
+
 
 		//Depth Pass --------------------------------------------------------------------------------------
 		{
@@ -529,19 +510,9 @@ int main(int argc, char** argv)
 			{
 				view = mainCamera * tb[0].matrix();
 			}
-
-            /*Aggiorna viewMatrix della camera
-            // Aggiorna la viewMatrix solo se necessario
-            if (change_cam != prev_change_cam) {
-                change_view(r);  // Aggiorna la vista se la telecamera è cambiata
-                prev_change_cam = change_cam;  // Memorizza lo stato precedente
-            }
-            //std::cout << "Actual View Matrix:\n" << glm::to_string(view * tb[0].matrix()) << std::endl;
-			*/
-
 			//Aggiorna camera
 			basic_shader.SetMatrix4x4("uProj", proj);
-			basic_shader.SetMatrix4x4("uView", view );
+			basic_shader.SetMatrix4x4("uView", view);
 
 			stack.load_identity();
 			stack.push();
@@ -564,8 +535,10 @@ int main(int argc, char** argv)
 			//Drones
 			for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
 				stack.push();
-				stack.mult(r.cameramen()[ic].frame);
-				stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
+				glm::mat4 model = r.cameramen()[ic].frame;
+				model = model * glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));  // Scala
+				model = model * glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 1.0f, 0.0f)); // Traslazione verso l'alto
+				stack.mult(model);
 				DrawModel(drone, basic_shader, stack.m());
 				stack.pop();
 			}
@@ -586,13 +559,6 @@ int main(int argc, char** argv)
 					// Imposta il colore se necessario
 					glm::vec3 objectColor = (i == 1) ? glm::vec3(0.45f, 0.17f, 0.02f) : glm::vec3(0.08f, 0.53f, 0.0f); 
 					basic_shader.SetVector3("uColor", objectColor);
-
-					// Aggiungi le normali (assicurati di avere le normali nel modello)
-					//tree_objects[i].add_vertex_attribute(
-					//	&tree_objects[i].mater.normal_texture,
-					//	tree_objects[i].mater.normal_texture.size() / 3,
-					//	2,
-					//	3);
 
 					glDrawElements(tree[i]().mode, tree[i]().count, tree[i]().itype, 0);
 					stack.pop();
@@ -618,8 +584,9 @@ int main(int argc, char** argv)
 				glDrawElements(lamp[0]().mode, lamp[0]().count, lamp[0]().itype, 0);
 				stack.pop(); // Ripristina lo stato precedente
 			}
-
-			//Cars
+/*
+*/
+			//Cars		
 			for (unsigned int k = 0; k < r.cars().size(); ++k) {
 				stack.push();
 				stack.mult(r.cars()[k].frame);
@@ -645,9 +612,21 @@ int main(int argc, char** argv)
 				basic_shader.bind("uHeadlightN[" + std::to_string(k * 2 + 1) + "]");
 				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k * 2 + 1) + "]", headlightDir);
 
-				// Disegna il modello dell'auto
 				stack.mult(glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 0.3f, 0.3f)));
 				stack.mult(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.5f, 0.0f)));
+
+	
+				glm::mat4 viewMatrix = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[k].frame);
+
+				basic_shader.bind("uProjectorPos[" + std::to_string(k) + "]");
+				basic_shader.SetVector3("uProjectorPos[" + std::to_string(k) + "]", headlightPos1);
+				
+				basic_shader.bind("uProjectorDir[" + std::to_string(k) + "]");
+				basic_shader.SetVector3("uProjectorDir[" + std::to_string(k) + "]", headlightDir);
+
+				basic_shader.bind("uLPView[" + std::to_string(k) + "]");
+				basic_shader.SetMatrix4x4("uLPView[" + std::to_string(k) + "]", viewMatrix);
+
 				DrawModel(car, basic_shader, stack.m());
 				stack.pop();
 			}
@@ -656,96 +635,6 @@ int main(int argc, char** argv)
 			stack.pop();
 		}
 		check_gl_errors(__LINE__, __FILE__);
-
-		/*
-		//fram.bind();
-		for (int k = 0; k < r.cameramen().size(); ++k) {
-			stack.push();
-
-			//Terrain
-			stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
-			glm::vec3 c = r.bbox().center();
-			c.y = 0;
-			stack.mult(glm::translate(glm::mat4(1), -c));
-
-			r_terrain.bind();
-			basic_shader.SetMatrix4x4("uModel", stack.m());
-			BindTexture(basic_shader, "uTexture", terrain_texture, 1);
-			glDrawElements(GL_TRIANGLES, 390150, GL_UNSIGNED_INT, 0);
-
-			//Track
-			r_track.bind();
-			basic_shader.SetMatrix4x4("uModel", stack.m());
-			BindTexture(basic_shader, "uTexture", track_texture, 1);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, r_track.vn);
-
-			//Drones
-			for (unsigned int ic = 0; ic < r.cameramen().size(); ++ic) {
-				stack.push();
-				stack.mult(r.cameramen()[ic].frame);
-				stack.mult(glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f)), glm::vec3(0.0f, 0.f, 5.0f)));
-				DrawModel(drone, basic_shader, stack.m());
-				stack.pop();
-			}
-
-			//Trees
-			for (stick_object l : r.trees())
-			{
-				stack.push();
-				stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.1)));
-				DrawModel(tree, basic_shader, stack.m());
-				stack.pop();
-			}
-
-			//Lampioni
-			lamp[0].bind();
-			BindTexture(basic_shader, "uTexture", lamp_texture, 1);
-			for (int i = 0;  i < r.lamps().size(); i++)
-			{
-				stick_object l = r.lamps()[i];
-				stack.push();
-				stack.mult(glm::scale(glm::translate(glm::mat4(1), l.pos), glm::vec3(0.2)));
-
-				basic_shader.bind("uLampLights[" + std::to_string(i) + "]");
-				basic_shader.SetVector3("uLampLights[" + std::to_string(i) + "]", glm::vec3(glm::translate(stack.m(), glm::vec3(0, l.height, 0)) * glm::vec4(0, 0, 0, 1)));
-
-				// Renderizza l'oggetto
-				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-				glDrawElements(lamp[0]().mode, lamp[0]().count, lamp[0]().itype, 0);
-				stack.pop(); // Ripristina lo stato precedente
-			}
-
-			//Cars
-			for (unsigned int ic = 0; ic < r.cars().size(); ++ic) {
-				stack.push();
-				
-				// Errore nella visualizzazione se carico carAR.glb forse c'e' bisogno di aggiungere una scalatura
-				stack.mult(r.cars()[ic].frame);
-				DrawModel(car, basic_shader, stack.m());
-				stack.pop();
-			}
-
-			glm::mat4 model = r.cameramen()[k].frame; // Matrice di trasformazione base (traslazione sul punto)
-			model = model * glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));  // Scala
-			model = model * glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 1.0f, 0.0f)); // Traslazione verso l'alto
-			stack.mult(model);
-			//std::cout << "model cameraman Matrix:\n" << glm::to_string(model) << std::endl;
-
-			//glm::vec3 cameramanPosition = glm::vec3(model[3]); // Estrae la traslazione (posizione)
-
-			for (unsigned int i = 0; i < drone_objects.size(); ++i) {
-				drone_objects[i].bind();
-				stack.push();
-				stack.mult(drone_objects[i].transform);
-				glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-				glBindTexture(GL_TEXTURE_2D, drone_objects[i].mater.base_color_texture);
-				glUniform3f(basic_shader["uColor"], 1.f, 1.f, 1.f);
-				glDrawElements(drone_objects[i].mode, drone_objects[i]().count, drone_objects[i]().itype, 0);
-				stack.pop();
-			}
-			stack.pop();
-		}
-		*/
 
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);
