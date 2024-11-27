@@ -122,14 +122,18 @@ float CalculateHeadlightIntensity(vec4 projCoord, vec3 wPos, vec3 lightPos, vec3
     if (distToLight >= maxDistance || dot(normalize(lightVec), lightDir) <= 0.0) 
         return 0.0;
 
-    vec2 uv = clamp((projCoord).xy, 0.0, 1.0);
+    vec2 uv = clamp(projCoord.xy, 0.0, 1.0);
     float headlightsIntensity = texture(uHeadlightsTexture, uv).r;
 
-    float dist = distance(uv, vec2(0.5, 0.5)); // Distanza dal centro della texture
-    float fadeFactor = smoothstep(0.0, 0.2, dist * 10.0); // Dissolvenza rapida
+    // Calcola la distanza dal centro della texture
+    float dist = distance(uv, vec2(0.5, 0.2));
+    
+    // Dissolvenza più forte con valori aggiustati
+    float fadeFactor = 1.0 - smoothstep(0.05, 0.15, dist); // Dissolvenza più rapida
 
     return fadeFactor * headlightsIntensity;
 }
+
 
 void main(void)
 {
@@ -140,11 +144,11 @@ void main(void)
     for (int i = 0; i < uLampsAmount; i++)
         result += CalcPointLight(uLampLights[i], normalize(vNormal));
 
-    float maxDistance = 0.1;
+    float maxDistance = 0.15;
     // Calcolo dell'intensità dei fari nel ciclo
-    for (int i = 0; i < min(uHeadlightAmount, 10); i++) {
+    for (int i = 0; i < 10; i++) {
         float intensity = CalculateHeadlightIntensity(vProjTexCoord[i], wPos, uProjectorPos[i], uProjectorDir[i], uHeadlightsTexture, maxDistance);
-        result += intensity * 0.1;
+        result += intensity * 1.5;
     }
 
     // Calcola luce dei fari (spotlights)
