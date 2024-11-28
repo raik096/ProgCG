@@ -51,6 +51,11 @@ struct shader{
 		{
 			glUniform1i(uni[uName], value);
 		}
+		
+		void SetBool(std::string uName, bool value)
+		{
+			SetInt(uName, (value)?1:0);
+		}
 
 		void SetFloat(std::string uName, float value)
 		{
@@ -109,6 +114,32 @@ struct shader{
 			validate_shader_program(program);
 		}
 
+		void  create_program( const GLchar *nameG, const GLchar *nameV, const char *nameF){
+		
+			std::string geometry_shader_src_code  = textFileRead(nameG);
+			std::string vertex_shader_src_code  = textFileRead(nameV);
+			std::string fragment_shader_src_code  = textFileRead(nameF);
+
+			create_shader(geometry_shader_src_code.c_str(), GL_GEOMETRY_SHADER);
+			create_shader(vertex_shader_src_code.c_str(), GL_VERTEX_SHADER);
+			create_shader(fragment_shader_src_code.c_str(), GL_FRAGMENT_SHADER);
+
+			program = glCreateProgram();
+			glAttachShader(program,geometry_shader);
+			glAttachShader(program,vertex_shader);
+			glAttachShader(program,fragment_shader);
+
+			glLinkProgram(program);
+
+			bind_uniform_variables(vertex_shader_src_code);
+			bind_uniform_variables(fragment_shader_src_code);
+
+			check_shader(geometry_shader);
+			check_shader(vertex_shader);
+			check_shader(fragment_shader);
+			validate_shader_program(program);
+		}
+
 private:
 		static  std::string textFileRead(const char* fn) {
 			std::ifstream ifragment_shader(fn);
@@ -126,6 +157,7 @@ private:
 			switch (SHADER_TYPE) {
 			case GL_VERTEX_SHADER:   s = vertex_shader = glCreateShader(GL_VERTEX_SHADER);break;
 			case GL_FRAGMENT_SHADER: s = fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);break;
+			case GL_GEOMETRY_SHADER: s = geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);break;
 #if defined(GL_VERSION_4_3)
 			case GL_COMPUTE_SHADER:  s = compute_shader = glCreateShader(GL_COMPUTE_SHADER);break;
 #endif

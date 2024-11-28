@@ -2,6 +2,8 @@
 #include <GL/glew.h>
 #include <iostream>
 
+#include "texture.h"
+
 
 
 struct frame_buffer_object {
@@ -25,6 +27,39 @@ struct frame_buffer_object {
 		}
 	}
 
+	void create_fromcubemap(int w_, int h_)
+	{
+		if ((w == w_) && (h == h_))
+			return;
+
+		w = w_;
+		h = h_;
+		glGenFramebuffers(1, &this->id_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, this->id_fbo);
+
+		glGenTextures(1, &this->id_tex);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, this->id_tex);
+		for (unsigned int i = 0; i < 6; ++i)
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
+							w_, h_, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+							
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->id_tex, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+
+		check_gl_errors(__LINE__, __FILE__, true);
+
+		int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		check(status);
+		glBindFramebuffer (GL_FRAMEBUFFER, 0);
+	}
+
 
 	void create(int w_, int h_,bool _use_texture_for_depth = false)
 	{
@@ -42,7 +77,7 @@ struct frame_buffer_object {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+		//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->id_tex, 0);
@@ -54,7 +89,7 @@ struct frame_buffer_object {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+		//glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, this->id_tex1, 0);

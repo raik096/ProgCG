@@ -14,6 +14,9 @@ uniform mat4 uModel;
 uniform vec3 uColor;
 uniform sampler2D uTexture;
 
+uniform int uSunShadowsEnable;
+uniform int uCarHeadlightEnable;
+
 uniform vec3 uSunDirection;
 uniform sampler2D uShadowMap;
 uniform vec2 uShadowMapSize;
@@ -70,6 +73,9 @@ vec3 CalcPointLight(vec3 lightPos, vec3 N)
 
 float ShadowCalculation(vec4 CoordLS)
 {
+    if(uSunShadowsEnable == 0)
+        return 1;
+
     float lit = 1.0;
     vec3 projCoords = wCoordLS.xyz / wCoordLS.w;
     projCoords = projCoords * 0.5 + 0.5;
@@ -111,6 +117,9 @@ vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N)
 // Funzione per calcolare l'intensità dei fari
 float CalculateHeadlightIntensity(vec4 projCoord, vec3 wPos, vec3 lightPos, vec3 lightDir, sampler2D uHeadlightsTexture, float maxDistance) 
 {
+    if(uCarHeadlightEnable == 0)
+        return 0;
+
     projCoord = projCoord / projCoord.w; 
     projCoord = projCoord * 0.5 + 0.5; 
 
