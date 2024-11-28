@@ -38,8 +38,8 @@
 #include "common/frame_buffer_object.h"
 #include "common/point_light.h"
 
-#define SUN_SHADOW_MAPPING false 
-#define CAR_HEADLIGHTS false 
+#define SHADOW_MAPPING true 
+#define CAR_HEADLIGHTS true 
 
 /* creo un array di due oggetti di tipo trackball e curr_tb mi tiene traccia dell'indice attivo tralle due tb*/
 trackball tb[2];
@@ -428,7 +428,7 @@ int main(int argc, char** argv)
 	glUseProgram(basic_shader.program);
 
 	//Impostazioni di debug
-	basic_shader.SetBool("uSunShadowsEnable", SUN_SHADOW_MAPPING);
+	basic_shader.SetBool("uSunShadowsEnable", SHADOW_MAPPING);
 	basic_shader.SetBool("uCarHeadlightEnable", CAR_HEADLIGHTS);
 	
 		//Impostazioni luce della scena
@@ -514,7 +514,7 @@ int main(int argc, char** argv)
 
 
 		//Depth Pass --------------------------------------------------------------------------------------
-		if(SUN_SHADOW_MAPPING){
+		if(SHADOW_MAPPING){
 			//Disegno sul framebuffer la depth dal punto di vista della luce 
 			glBindFramebuffer(GL_FRAMEBUFFER, ligthDepthFbo.id_fbo);
 			glViewport(0, 0, Lproj.sm_size_x, Lproj.sm_size_y);
@@ -550,7 +550,7 @@ int main(int argc, char** argv)
 		}
 		check_gl_errors(__LINE__, __FILE__);
 		
-		if(true){
+		if(false){
 			glBindFramebuffer(GL_FRAMEBUFFER, lampsFbo[0].id_fbo);
 			glViewport(0, 0, lampProjectors[0].sm_size_x, lampProjectors[0].sm_size_y);
 
@@ -572,30 +572,6 @@ int main(int argc, char** argv)
 
 		}
 		check_gl_errors(__LINE__, __FILE__);
-		
-		if(true){
-			glBindFramebuffer(GL_FRAMEBUFFER, lampsFbo[0].id_fbo);
-			glViewport(0, 0, lampProjectors[0].sm_size_x, lampProjectors[0].sm_size_y);
-
-			glUseProgram(depth_shader.program);
-			for (unsigned int i = 0; i < 6; ++i)
-			{
-				/*
-				glm::mat4 matrix = lampProjectors[0].light_matrix(i);
-				std::cout << glm::to_string(matrix) << std::endl;
-				depth_lamps_shader.bind("uLightMatrices[" + std::to_string(i) + "]");
-				depth_lamps_shader.SetMatrix4x4("uLightMatrices[" + std::to_string(i) + "]", matrix);
-				*/
-
-				//Setta lightMatrix per la faccia attuale
-				glm::mat4 matrix = lampProjectors[0].light_matrix(i);
-				depth_shader.SetMatrix4x4("uLightMatrix", matrix);
-				DrawDepthScene(r, depth_shader);
-			}
-
-		}
-		check_gl_errors(__LINE__, __FILE__);
-
 		//Rendering Pass --------------------------------------------------------------------------------------
 		{
 			

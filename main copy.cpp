@@ -418,7 +418,7 @@ int main(int argc, char** argv)
 	glUseProgram(basic_shader.program);
 
 	//Impostazioni di debug
-	basic_shader.SetBool("uSunShadowsEnable", SUN_SHADOW_MAPPING);
+	basic_shader.SetBool("uSunShadowsEnable", SHADOW_MAPPING);
 	basic_shader.SetBool("uCarHeadlightEnable", CAR_HEADLIGHTS);
 	
 		//Impostazioni luce della scena
@@ -504,7 +504,7 @@ int main(int argc, char** argv)
 
 
 		//Depth Pass --------------------------------------------------------------------------------------
-		if(SUN_SHADOW_MAPPING){
+		if(SHADOW_MAPPING){
 			//Disegno sul framebuffer la depth dal punto di vista della luce 
 			glBindFramebuffer(GL_FRAMEBUFFER, ligthDepthFbo.id_fbo);
 			glViewport(0, 0, Lproj.sm_size_x, Lproj.sm_size_y);
