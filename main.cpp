@@ -80,16 +80,6 @@ texture terrain_texture;
 //Disegna la scena per il creare lo shadowMapping, l'fbo target deve essere bindato prima
 void DrawDepthScene(race r, shader shader)
 {
-	glUseProgram(shader.program);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
-	glm::vec3 ligthUp = glm::cross(r.sunlight_direction(), glm::vec3(1, 0, 0));
-	Lproj.view_matrix = glm::lookAt(r.sunlight_direction() * Lproj.distance_light, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0, 1, 0));
-	Lproj.set_projection(Lproj.view_matrix, 0.5);
-	
-	shader.SetMatrix4x4("uLightMatrix", Lproj.light_matrix());
-	shader.SetFloat("uPlaneApprox", k_plane_approx);
-
 	stack.load_identity();
 	stack.push();
 
@@ -148,7 +138,7 @@ void DrawDepthScene(race r, shader shader)
 	for (unsigned int k = 0; k < r.cars().size(); ++k) {
 		stack.push();
 		
-		stack.mult(glm::scale((r.cars()[k].frame), glm::vec3(0.5f, 0.5f, 0.5f)));
+		stack.mult(glm::scale( r.cars()[k].frame, glm::vec3(0.5f, 0.5f, 0.5f)));
 		DrawModel(car, shader, stack.m());
 		stack.pop();
 	}
@@ -308,15 +298,6 @@ int main(int argc, char** argv)
 	depth_shader.create_program("shaders/depth.vert", "shaders/depth.frag");
 
 	gltf_loader gltfLoader;
-	/*
-	box3 bbox_lamp, bbox_car, bbox_tree, bbox_drone, bbox_cube;
-	std::vector<renderable> lamp;
-	std::vector<renderable> car;
-	std::vector<renderable> tree;
-	std::vector<renderable> drone;
-	std::vector<renderable> cube;
-	*/
-	
 	/* carico le macchine quindi car_objects */
     gltfLoader.load_to_renderable("assets/models/car1.glb", car, bbox_car);
 	/* carico le lamp quindi lamp_objects */
@@ -338,8 +319,6 @@ int main(int argc, char** argv)
 	tb[0].reset();
 	tb[0].set_center_radius(glm::vec3(0, 0, 0), 1.f);
 	curr_tb = 0;
-
-	//Setup della scena	---------------------------------------------
 
 	//Setuppiamo il carosello---------------------------------------------
 	race r;
@@ -376,6 +355,33 @@ int main(int argc, char** argv)
 	depth_bias = 0;
 	
 	ligthDepthFbo.create(Lproj.sm_size_x, Lproj.sm_size_y,true);
+	
+	//Creo i proiettori per le ombre dei fari
+	std::vector<frame_buffer_object> headlightDepthFbos;
+	std::vector<headl_light> hlProjectors;
+
+	// Per ogni macchina crea un buffer, 
+	for (int i = 0; i < r.cars().size(); i++) {
+		// Creazione framebuffer
+		frame_buffer_object fbo;
+		fbo.create(1024, 1024, true);
+
+		headlightDepthFbos.push_back(fbo);
+
+		// Creazione proiettore
+		glm::vec3 c = r.bbox().center();
+		c.y = 0;
+		//glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame);
+		//glm::vec4 hlpos = (glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame[3];
+		glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame);
+
+		headl_light hl;
+		hl.sm_size_x = 512;
+		hl.sm_size_y = 512;
+
+		hl.set(hlview);
+		hlProjectors.push_back(hl);
+	}
 
 	//Creo i proiettori per le ombre dei lampioni
 	std::vector<point_light> lampProjectors;
@@ -479,8 +485,37 @@ int main(int argc, char** argv)
 			//Disegno sul framebuffer la depth dal punto di vista della luce 
 			glBindFramebuffer(GL_FRAMEBUFFER, ligthDepthFbo.id_fbo);
 			glViewport(0, 0, Lproj.sm_size_x, Lproj.sm_size_y);
+			glUseProgram(depth_shader.program);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	
+			glm::vec3 ligthUp = glm::cross(r.sunlight_direction(), glm::vec3(1, 0, 0));
+			Lproj.view_matrix = glm::lookAt(r.sunlight_direction() * Lproj.distance_light, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0, 1, 0));
+			Lproj.set_projection(Lproj.view_matrix, 0.5);
+	
+			depth_shader.SetMatrix4x4("uLightMatrix", Lproj.light_matrix());
+			depth_shader.SetFloat("uPlaneApprox", k_plane_approx);
 
 			DrawDepthScene(r, depth_shader);
+
+			//HEADLIGHTS SHADOWMAP 
+
+			for (int i = 0; i < r.cars().size(); i++) {
+
+				// Bindo il buffer corrispondente alla macchina i
+				glBindFramebuffer(GL_FRAMEBUFFER, headlightDepthFbos[i].id_fbo);
+				glViewport(0, 0, 512, 512);
+				glUseProgram(depth_shader.program);
+				glClear(GL_DEPTH_BUFFER_BIT);
+
+				// Qui c'e' bisogno della LightMatrix da passare allo shader quindi deve gia' essere calcolato come proj * view
+				depth_shader.SetMatrix4x4("uLightMatrix", hlProjectors[i].light_matrix);
+				depth_shader.SetFloat("uPlaneApprox", 0.05);
+
+				DrawDepthScene(r, depth_shader);
+
+			}
+
+		
 		}
 		check_gl_errors(__LINE__, __FILE__);
 
