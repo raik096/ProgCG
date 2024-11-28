@@ -53,6 +53,11 @@ uniform vec3 uHeadlightColor;
 uniform float uHeadlightC1, uHeadlightC2, uHeadlightC3;
 uniform float uHeadlightCutOff, uHeadlightOuterCutOff;
 
+//Spotlight shadows
+uniform sampler2D[MAX_HEADL_AMOUNT] uHeadShadowMap;
+uniform mat4[MAX_HEADL_AMOUNT] uHeadLightMatrix;
+uniform vec2 uHeadMapSize;
+
 vec3 LambertDiffuse(vec3 L, vec3 N)
 {
     float LN = max(0, dot(L, N));
@@ -73,6 +78,7 @@ vec3 CalcPointLight(vec3 lightPos, vec3 N)
 
 float ShadowCalculation(vec4 CoordLS)
 {
+    return 1;
     if(uSunShadowsEnable == 0)
         return 1;
 
@@ -94,8 +100,26 @@ float ShadowCalculation(vec4 CoordLS)
     return lit;
 }
 
-vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N)
+
+float SpotShadowCalculation(int spotId, vec4 CoordLS)
 {
+    if(uSunShadowsEnable == 0)
+        return 1;
+
+    float lit = 0.0;
+    vec3 projCoords = CoordLS.xyz / CoordLS.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(uShadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+
+    float storedDepth = texture(uHeadShadowMap[spotId], projCoords.xy/ uHeadMapSize).r;
+    if (storedDepth < currentDepth)
+        lit = 1;
+    return lit;
+}
+
+vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N)
+{ 
     vec3 lightVec = lightPos - wPos;
     vec3 L = normalize(lightVec);
 
@@ -141,8 +165,6 @@ float CalculateHeadlightIntensity(vec4 projCoord, vec3 wPos, vec3 lightPos, vec3
     return fadeFactor * headlightsIntensity;
 }
 
-
-
 void main(void)
 {
     // Calcolo della luce solare con ombra
@@ -155,13 +177,15 @@ void main(void)
     float maxDistance = 0.3;
     // Calcolo dell'intensità dei fari nel ciclo
     for (int i = 0; i < 10; i++) {
-        float intensity = CalculateHeadlightIntensity(vProjTexCoord[i], wPos, uProjectorPos[i], uProjectorDir[i], uHeadlightsTexture, maxDistance);
+        float intensity = CalculateHeadlightIntensity(vProjTexCoord[i], wPos, uProjectorPos[i], uProjectorDir[i], uHeadlightsTexture, maxDistance) * SpotShadowCalculation(i, uHeadLightMatrix[i] * vec4(wPos, 1));
         result += intensity * 1;
     }
 
     // Calcola luce dei fari (spotlights)
-    for (int i = 0; i < uHeadlightAmount; i++)
-        result += CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal));
+    for (int i = 0; i < 10; i++)
+    {
+        result += CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal)) * SpotShadowCalculation(i, uHeadLightMatrix[i] * vec4(wPos, 1));
+    }
 
     FragColor = vec4(result, 1.0);
 }

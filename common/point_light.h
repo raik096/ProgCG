@@ -57,7 +57,7 @@ struct headl_light
     {
 
         float aspect = (float)sm_size_x/(float)sm_size_y;
-        float near = 1.0f;
+        float near = 0.1f;
         float far = 25.0f;
         //float distance_light = 0.5;
         //glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 0.1f * 2.0f);

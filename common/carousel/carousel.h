@@ -292,7 +292,7 @@ public:
 	void update() {
 		int cs = clock() - clock_start;
 		for (size_t i = 0; i < _cars.size();++i) {
-			int ii = ((int)((cs) / 1000.f * 5.f)+ _cars[i].delta_i) % carpaths[_cars[i].id_path].frames.size();
+			int ii = ((int)((cs) / 1000.f * 1.f)+ _cars[i].delta_i) % carpaths[_cars[i].id_path].frames.size();
 			//std::cout << ii << std::endl;
 			_cars[i].frame = carpaths[_cars[i].id_path].frames[ii];
 		}
