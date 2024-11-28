@@ -47,4 +47,28 @@ struct point_light
 	int sm_size_x, sm_size_y;
 };
 
+// ogni istanza di head_light corrisponde ad un faro
+struct headl_light
+{
+    glm::mat4 light_matrix;
+    int sm_size_x, sm_size_y;
+
+    void set(glm::mat4 view)
+    {
+
+        float aspect = (float)sm_size_x/(float)sm_size_y;
+        float near = 1.0f;
+        float far = 25.0f;
+        //float distance_light = 0.5;
+        //glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 0.1f * 2.0f);
+        
+        glm::mat4 proj = glm::perspective(glm::radians(120.0f), aspect, near, far);
+        //glm::mat4 proj_matrix = glm::perspective(3.14f/2.f,1.0f,0.1f, distance_light*2.f);
+        light_matrix = proj * view;
+    
+    }
+    
+};
+
+
 #endif
