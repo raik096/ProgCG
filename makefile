@@ -23,5 +23,7 @@ $(TARGET): $(OBJS)
 clean:
 	rm -f $(OBJS) $(TARGET)
 
+all: $(TARGET)
+
 # Regole di utilità
 .PHONY: all clean
