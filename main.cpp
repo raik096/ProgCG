@@ -208,10 +208,8 @@ int main(int argc, char** argv)
 	glUseProgram(basic_shader.program);
 
 	//Impostazioni spotLight
-	basic_shader.bind("uBias");
-	basic_shader.SetFloat("uBias", 0.01f);
-	basic_shader.bind("uSpotShadowMapSize");
-	basic_shader.SetVector2("uSpotShadowMapSize", glm::vec2(spotProj.sm_size_x, spotProj.sm_size_y));
+	basic_shader.SetVector3("uSpotPos", spotPos);
+	basic_shader.SetVector4("uSpotDir", spotDir);
 
 	check_gl_errors(__LINE__, __FILE__);
 
@@ -233,6 +231,10 @@ int main(int argc, char** argv)
 		stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/bbox_scene.diagonal())));
 		stack.mult(glm::translate(glm::mat4(1), -c));
 
+		glm::mat4 lightView = glm::lookAt(glm::vec3(spotPos), glm::vec3(0), glm::vec3(0.0, 1.0, 0.0));
+		glm::mat4 lightProj = glm::perspective(glm::radians(45.f), (float)1.0f, 0.1f, 100.f);
+		glm::mat4 lightMat = lightProj * lightView;
+
 		//Depth Pass --------------------------------------------------------------------------------------
 		{
 			//Disegno sul framebuffer la depth dal punto di vista della luce 
@@ -242,10 +244,7 @@ int main(int argc, char** argv)
 
 			glUseProgram(depth_shader.program);
 
-			glm::mat4 view = glm::lookAt(glm::vec3(spotPos), glm::vec3(0), glm::vec3(0.0, 1.0, 0.0));
-			glm::mat4 proj = glm::perspective(glm::radians(45.f), (float)1.0f, 0.1f, 100.f);
-
-			depth_shader.SetMatrix4x4("uSpotLightMatrix", proj * view);
+			depth_shader.SetMatrix4x4("uSpotLightMatrix", lightMat);
 			depth_shader.SetFloat("uPlaneApprox", k_plane_approx);
 
 			stack.push();
@@ -275,7 +274,8 @@ int main(int argc, char** argv)
 			basic_shader.bind("uSpotShadowMap");
 			basic_shader.SetInt("uSpotShadowMap", 0);
 			basic_shader.bind("uSpotLightMatrix");
-			basic_shader.SetMatrix4x4("uSpotLightMatrix", Lproj.light_matrix());
+
+			basic_shader.SetMatrix4x4("uSpotLightMatrix", lightMat);
 
 			//Disegna cose qui
 			stack.push();

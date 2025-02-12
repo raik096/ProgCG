@@ -13,15 +13,11 @@ out vec4 wCoordLS;
 out vec3 vNormal;
 out vec2 vTexCoord;
 out vec3 vColor;
-out vec4 vProjTexCoord[amountULP];
 
 uniform mat4 uProj;
 uniform mat4 uView;
 uniform mat4 uModel;
-uniform mat4 uLightMatrix;
-
-uniform mat4 uLPProj;
-uniform mat4 uLPView[amountULP];
+uniform mat4 uSpotLightMatrix;
 
 void main() {
     vPos = (uView * uModel * vec4(aPosition, 1.0)).xyz;
@@ -29,10 +25,8 @@ void main() {
     vNormal = mat3(transpose(inverse(uModel))) * aNormal;
     vTexCoord = aTexCoord;
     vColor = aColor;
-    wCoordLS = uLightMatrix * vec4(wPos, 1);
-    
-    for (int i = 0; i < amountULP; i++)
-        vProjTexCoord[i] =  uLPProj * uLPView[i] * vec4(wPos, 1.0);
+    wCoordLS = uSpotLightMatrix * vec4(wPos, 1);
+
 
     gl_Position = uProj * uView * uModel * vec4(aPosition, 1.0);
 }

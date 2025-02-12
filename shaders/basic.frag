@@ -14,10 +14,9 @@ uniform mat4 uModel;
 uniform vec3 uColor;
 uniform sampler2D uTexture;
 
-uniform float uBias;
+uniform vec3 uSpotPos;
+uniform vec4 uSpotDir;
 uniform sampler2D uSpotShadowMap;
-uniform vec2 uSpotShadowMapSize;
-uniform mat4 uSpotLightMatrix;
 
 vec3 LambertDiffuse(vec3 L, vec3 N)
 {
@@ -26,49 +25,60 @@ vec3 LambertDiffuse(vec3 L, vec3 N)
     return uColor * LN;
 }
 
-float SpotShadowCalculation(int spotId, vec4 CoordLS)
+float SpotShadowCalculation(vec4 CoordLS)
 {
-    /*
-    if(uSunShadowsEnable == 0)
-        return 1;
-
     float lit = 0.0;
+
     vec3 projCoords = CoordLS.xyz / CoordLS.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(uHeadShadowMap[spotId], projCoords.xy).r;
+
     float currentDepth = projCoords.z;
 
-    vec2 pixelSize = 1.0/textureSize(uHeadShadowMap[spotId], 0);
-    for (float x = -2; x <= 2; x += 1.0)
-        for (float y = -2; y <= 2; y += 1.0)
+    int sampleRadius = 2;
+    vec2 pixelSize = 1.0/textureSize(uSpotShadowMap, 0);
+
+    vec3 lightDirection = normalize(uSpotPos - wPos);
+    float bias = max(0.00025f * (1.0f - dot(normalize(vNormal), lightDirection)), 0.000005f);
+
+    for(int y = -sampleRadius; y <= sampleRadius; y++)
+    {
+
+        for(int x = -sampleRadius; x <= sampleRadius; x++)
         {
-            float storedDepth = texture(uHeadShadowMap[spotId], projCoords.xy + vec2(x, y)*pixelSize).r;
-            if (storedDepth + 0.005f < currentDepth)
-            lit += 1.0 / 16.0;
+            float closestDepth = texture(uSpotShadowMap, projCoords.xy + vec2(x, y) * pixelSize).r;
+            if(currentDepth > closestDepth + bias)
+                lit += 1.0f;
         }
-    return lit;
-    */
-    return 1;
+    }
+
+    lit /= pow((sampleRadius * 2 + 1), 2);
+    return  1.0 - lit;
 }
 
-vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N)
+vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor)
 {
-    /*
+    float outerCutoff = 0.95;
+    float cutoff = 0.97;
+
+    float c1 = 1.0;
+    float c2 = 0.08;
+    float c3 = 0.0044;
+
     vec3 lightVec = lightPos - wPos;
     vec3 L = normalize(lightVec);
 
     float theta = dot(L, normalize(-lightDir));
-    if (theta > uHeadlightOuterCutOff)
+    if (theta > outerCutoff)
     {
-        float intensity = clamp((theta - uHeadlightOuterCutOff) / (uHeadlightCutOff - uHeadlightOuterCutOff), 0.0, 1.0);
+        float epsilon = cutoff - outerCutoff;
+
+        float intensity = clamp((theta - outerCutoff) / epsilon, 0.0, 1.0);
 
         float distance = length(lightVec);
-        float attenuation = 1.0 / (uHeadlightC1 + uHeadlightC2 * distance + uHeadlightC3 * (distance * distance));
+        float attenuation = 1.0 / (c1 + c2 * distance + c3 * (distance * distance));
 
-        vec3 diffuse = LambertDiffuse(L, N);
-
-        return lightColor * diffuse * attenuation * intensity;
-    }*/
+        return lightColor * intensity * attenuation;
+    }
     return vec3(0.0); // Fuori dal cono, niente luce
 }
 
@@ -76,6 +86,8 @@ void main(void)
 {
     // Calcolo della luce solare con ombra
     vec3 result = LambertDiffuse(normalize(vec3(1, 1, 1)), normalize(vNormal));
+    result *= CalcSpotLight(uSpotPos, uSpotDir.xyz, vec3(1, 1, 1));
+    result *= SpotShadowCalculation(wCoordLS);
 
     FragColor = vec4(result, 1.0);
 }

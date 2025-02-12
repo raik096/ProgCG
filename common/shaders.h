@@ -72,6 +72,11 @@ struct shader{
 			glUniform3f(uni[uName], value.x, value.y, value.z);
 		}
 
+		void SetVector4(std::string uName, glm::vec4 value)
+        {
+        	glUniform4f(uni[uName], value.x, value.y, value.z, value.w);
+        }
+
 		void SetMatrix4x4(std::string uName, glm::mat4 value)
 		{
 			glUniformMatrix4fv(uni[uName], 1, GL_FALSE, &value[0][0]);
