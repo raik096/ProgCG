@@ -55,15 +55,11 @@ float scaling_factor = 1.0;
 float depth_bias = 0;
 float k_plane_approx = 0.5;
 
-frame_buffer_object ligthDepthFbo;
-projector Lproj;
-glm::vec4 Ldir;
-
-
+//Dove conserviamo il risultato del rendering dal punto di vista della spotLight
 frame_buffer_object spotDepthFbo;
 projector spotProj;
-glm::vec3 spotPos;
-glm::vec4 spotDir;
+glm::vec3 spotPos;	//Posizione della spotLight
+glm::vec4 spotDir;	//Direzione in cui guarda
 
 box3 bbox_scene;
 std::vector<renderable> scene;
@@ -183,25 +179,12 @@ int main(int argc, char** argv)
 
 	glm::mat4 mainCamera = glm::lookAt(glm::vec3(0, 1.0f, 1.5f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
 
-	/* initial light direction */
-	Ldir = glm::vec4(0.0, 1.0, 0.0, 0.0);
-	k_plane_approx = 0.5;
-
-	/* light projection */
-	Lproj.sm_size_x = 512;
-	Lproj.sm_size_y = 512;
-	Lproj.distance_light = 0.5;
-	depth_bias = 0;
-	
-	ligthDepthFbo.create(Lproj.sm_size_x, Lproj.sm_size_y,true);
-
 	/* SpotLight seutp */
 	spotPos = glm::vec3(0, 0.5, 1.0f);
 	spotDir = glm::vec4(glm::normalize(-spotPos), 0); //la spotLight guarda verso <0,0,0>
 	spotProj.sm_size_x = 512;
 	spotProj.sm_size_y = 512;
 	spotProj.distance_light = 0.5;
-
 	spotDepthFbo.create(spotProj.sm_size_x, spotProj.sm_size_y, true);
 
 	//Impostazioni luce della scena
@@ -231,6 +214,7 @@ int main(int argc, char** argv)
 		stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/bbox_scene.diagonal())));
 		stack.mult(glm::translate(glm::mat4(1), -c));
 
+		//Calcolo la matrice di vista e prozione della luce
 		glm::mat4 lightView = glm::lookAt(glm::vec3(spotPos), glm::vec3(0), glm::vec3(0.0, 1.0, 0.0));
 		glm::mat4 lightProj = glm::perspective(glm::radians(45.f), (float)1.0f, 0.1f, 100.f);
 		glm::mat4 lightMat = lightProj * lightView;
@@ -244,6 +228,7 @@ int main(int argc, char** argv)
 
 			glUseProgram(depth_shader.program);
 
+			//Uso la matrice di vista per renderizzare tutta la scena dal punto di vista della luce
 			depth_shader.SetMatrix4x4("uSpotLightMatrix", lightMat);
 			depth_shader.SetFloat("uPlaneApprox", k_plane_approx);
 
@@ -265,16 +250,14 @@ int main(int argc, char** argv)
 			glUseProgram(basic_shader.program);
 			basic_shader.SetVector3("uColor", glm::vec3(1, 1, 1));
 
-			glActiveTexture(GL_TEXTURE0);
-    		glBindTexture(GL_TEXTURE_2D, spotDepthFbo.id_tex);
-
+			//Ridisegno tutta la scena dal punto di vista della camera principale
 			basic_shader.SetMatrix4x4("uProj", proj);
 			basic_shader.SetMatrix4x4("uView", mainCamera * tb[0].matrix());
 
-			basic_shader.bind("uSpotShadowMap");
+			//Specifico alla shader che nello slot texture 0 ci sara' il rendering della spotLight
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, spotDepthFbo.id_tex);
 			basic_shader.SetInt("uSpotShadowMap", 0);
-			basic_shader.bind("uSpotLightMatrix");
-
 			basic_shader.SetMatrix4x4("uSpotLightMatrix", lightMat);
 
 			//Disegna cose qui

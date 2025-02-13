@@ -25,6 +25,9 @@ void main() {
     vNormal = mat3(transpose(inverse(uModel))) * aNormal;
     vTexCoord = aTexCoord;
     vColor = aColor;
+
+    //Mi calcolo le coordinate in del vertice nello spazio della spotLight, questo sara' campionare la shadowMap.
+    //Fare questo calcolo qui e' molto comodo poiche' viene fatto per ogni vertice invece che per ogni pixel.
     wCoordLS = uSpotLightMatrix * vec4(wPos, 1);
 
 

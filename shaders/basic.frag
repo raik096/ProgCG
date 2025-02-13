@@ -29,20 +29,23 @@ float SpotShadowCalculation(vec4 CoordLS)
 {
     float lit = 0.0;
 
+    //Proietto le coordinate in lightSpace sullo schermo per ottenere la posizione del frammento nella shadowMap
     vec3 projCoords = CoordLS.xyz / CoordLS.w;
-    projCoords = projCoords * 0.5 + 0.5;
+    projCoords = projCoords * 0.5 + 0.5; //Converto da [-1, 1] (range di coord. del clip space) a [0, 1] (range di coordinate texture)
 
     float currentDepth = projCoords.z;
 
     int sampleRadius = 2;
     vec2 pixelSize = 1.0/textureSize(uSpotShadowMap, 0);
 
+    //Semplice calcolo utile per calcolare il bias "migliore". Questa tecnica di shadow mapping porta ad avere artefatti
+    //quando la luce e' quasi parallela al terreno, o meglio ci sono problemi di precisione.
+    ///Quello che possiamo fare e' quindi verificare quanto parallelamente stiamo guardando il frammento e scegliere un valore di bias piu' alto/basso
     vec3 lightDirection = normalize(uSpotPos - wPos);
     float bias = max(0.00025f * (1.0f - dot(normalize(vNormal), lightDirection)), 0.000005f);
 
     for(int y = -sampleRadius; y <= sampleRadius; y++)
     {
-
         for(int x = -sampleRadius; x <= sampleRadius; x++)
         {
             float closestDepth = texture(uSpotShadowMap, projCoords.xy + vec2(x, y) * pixelSize).r;
@@ -51,7 +54,7 @@ float SpotShadowCalculation(vec4 CoordLS)
         }
     }
 
-    lit /= pow((sampleRadius * 2 + 1), 2);
+    lit /= pow((sampleRadius), 2); //Con il Percentage Closest Filtering vogliamo fare la media dei campionamenti effettauti. I campionamenti sono sampleRadius * sampleRadius.
     return  1.0 - lit;
 }
 
@@ -84,9 +87,13 @@ vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor)
 
 void main(void)
 {
-    // Calcolo della luce solare con ombra
+    // Calcolo della luce locale
     vec3 result = LambertDiffuse(normalize(vec3(1, 1, 1)), normalize(vNormal));
+
+    //Influenza della spotLight
     result *= CalcSpotLight(uSpotPos, uSpotDir.xyz, vec3(1, 1, 1));
+
+    //Il frammento e' in ombra/coperto da qualche altro oggetto?
     result *= SpotShadowCalculation(wCoordLS);
 
     FragColor = vec4(result, 1.0);
