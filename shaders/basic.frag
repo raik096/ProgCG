@@ -1,4 +1,5 @@
 #version 460 core
+#define MAX_HEADL_AMOUNT 20
 
 out vec4 FragColor;
 
@@ -9,10 +10,12 @@ in vec3 vNormal;
 in vec2 vTexCoord;
 in vec3 vColor;
 in vec4 vProjTexCoord[10];
+in vec4[MAX_HEADL_AMOUNT] wCoordHeadLS;
 
 uniform mat4 uModel;
 uniform vec3 uColor;
 uniform sampler2D uTexture;
+uniform sampler2D uTest;
 
 uniform int uSunShadowsEnable;
 uniform int uCarHeadlightEnable;
@@ -37,7 +40,6 @@ uniform sampler2D uHeadlightsTexture;
 uniform vec3 uProjectorPos[10];
 uniform vec3 uProjectorDir[10];
 
-#define MAX_HEADL_AMOUNT 20
 uniform int uHeadlightAmount;
 uniform vec3 uHeadlights[MAX_HEADL_AMOUNT];
 
@@ -55,7 +57,6 @@ uniform float uHeadlightCutOff, uHeadlightOuterCutOff;
 
 //Spotlight shadows
 uniform sampler2D[MAX_HEADL_AMOUNT] uHeadShadowMap;
-uniform mat4[MAX_HEADL_AMOUNT] uHeadLightMatrix;
 uniform vec2 uHeadMapSize;
 
 vec3 LambertDiffuse(vec3 L, vec3 N)
@@ -78,7 +79,6 @@ vec3 CalcPointLight(vec3 lightPos, vec3 N)
 
 float ShadowCalculation(vec4 CoordLS)
 {
-    return 1;
     if(uSunShadowsEnable == 0)
         return 1;
 
@@ -107,33 +107,56 @@ float SpotShadowCalculation(int spotId, vec4 CoordLS)
         return 1;
 
     float lit = 0.0;
+
+    //Proietto le coordinate in lightSpace sullo schermo per ottenere la posizione del frammento nella shadowMap
     vec3 projCoords = CoordLS.xyz / CoordLS.w;
-    projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(uShadowMap, projCoords.xy).r;
+    projCoords = projCoords * 0.5 + 0.5; //Converto da [-1, 1] (range di coord. del clip space) a [0, 1] (range di coordinate texture)
+
     float currentDepth = projCoords.z;
 
-    float storedDepth = texture(uHeadShadowMap[spotId], projCoords.xy/ uHeadMapSize).r;
-    if (storedDepth < currentDepth)
-        lit = 1;
-    return lit;
+    int sampleRadius = 2;
+    vec2 pixelSize = 1.0/textureSize(uTest, 0);
+
+    vec3 lightDirection = normalize(uHeadlights[spotId] - wPos);
+    float bias = max(0.00025f * (1.0f - dot(normalize(vNormal), lightDirection)), 0.000005f);
+
+    for(int y = -sampleRadius; y <= sampleRadius; y++)
+    {
+        for(int x = -sampleRadius; x <= sampleRadius; x++)
+        {
+            float closestDepth = texture(uTest, projCoords.xy + vec2(x, y) * pixelSize).r;
+            if(currentDepth > closestDepth + bias)
+            lit += 1.0f;
+        }
+    }
+
+    lit /= pow((sampleRadius * 2 + 1), 2); //Con il Percentage Closest Filtering vogliamo fare la media dei campionamenti effettauti. I campionamenti sono sampleRadius * sampleRadius.
+    return  1.0 - lit;
 }
 
 vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N)
-{ 
+{
+    float outerCutoff = uHeadlightOuterCutOff;
+    float cutoff = uHeadlightCutOff;
+
+    float c1 = uHeadlightC1;
+    float c2 = uHeadlightC2;
+    float c3 = uHeadlightC3;
+
     vec3 lightVec = lightPos - wPos;
     vec3 L = normalize(lightVec);
 
     float theta = dot(L, normalize(-lightDir));
-    if (theta > uHeadlightOuterCutOff)
+    if (theta > outerCutoff)
     {
-        float intensity = clamp((theta - uHeadlightOuterCutOff) / (uHeadlightCutOff - uHeadlightOuterCutOff), 0.0, 1.0);
+        float epsilon = cutoff - outerCutoff;
+
+        float intensity = clamp((theta - outerCutoff) / epsilon, 0.0, 1.0);
 
         float distance = length(lightVec);
-        float attenuation = 1.0 / (uHeadlightC1 + uHeadlightC2 * distance + uHeadlightC3 * (distance * distance));
+        float attenuation = 1.0 / (c1 + c2 * distance + c3 * (distance * distance));
 
-        vec3 diffuse = LambertDiffuse(L, N);
-
-        return lightColor * diffuse * attenuation * intensity;
+        return lightColor * intensity * attenuation;
     }
     return vec3(0.0); // Fuori dal cono, niente luce
 }
@@ -167,24 +190,30 @@ float CalculateHeadlightIntensity(vec4 projCoord, vec3 wPos, vec3 lightPos, vec3
 
 void main(void)
 {
+    vec3 color = texture(uTexture, vTexCoord).rgb * uColor;
+
     // Calcolo della luce solare con ombra
-    vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal)) * ShadowCalculation(wCoordLS);
+    //float shadow = 0;ShadowCalculation(wCoordLS);
 
     // Calcola luce dei lampioni
-    for (int i = 0; i < uLampsAmount; i++)
-        result += CalcPointLight(uLampLights[i], normalize(vNormal));
+    //for (int i = 0; i < uLampsAmount; i++)
+    //    result += CalcPointLight(uLampLights[i], normalize(vNormal));
 
+    /*
     float maxDistance = 0.3;
     // Calcolo dell'intensità dei fari nel ciclo
     for (int i = 0; i < 10; i++) {
         float intensity = CalculateHeadlightIntensity(vProjTexCoord[i], wPos, uProjectorPos[i], uProjectorDir[i], uHeadlightsTexture, maxDistance) * SpotShadowCalculation(i, uHeadLightMatrix[i] * vec4(wPos, 1));
         result += intensity * 1;
     }
+    */
 
     // Calcola luce dei fari (spotlights)
-    for (int i = 0; i < 10; i++)
+    vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal));
+    for (int i = 0; i < 1; i++)
     {
-        result += CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal)) * SpotShadowCalculation(i, uHeadLightMatrix[i] * vec4(wPos, 1));
+        result += color * CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal))* SpotShadowCalculation(0, wCoordHeadLS[0]);
+        //shadow = //max(SpotShadowCalculation(i, wCoordHeadLS[i]), shadow);
     }
 
     FragColor = vec4(result, 1.0);
