@@ -38,8 +38,9 @@
 #include "common/frame_buffer_object.h"
 #include "common/point_light.h"
 
-#define SHADOW_MAPPING true 
-#define CAR_HEADLIGHTS true 
+#define SHADOW_MAPPING true
+#define CAR_HEADLIGHTS true
+#define CAR_AMOUNT 4 //Il max dovrebbe essere dieci
 
 /* creo un array di due oggetti di tipo trackball e curr_tb mi tiene traccia dell'indice attivo tralle due tb*/
 trackball tb[2];
@@ -69,10 +70,17 @@ bool watchCameras = false; //Se true vogliamo guardare attreverso gli occhi del 
 
 //Renderable Objects
 box3 bbox_lamp, bbox_car, bbox_tree, bbox_drone, bbox_cube;
-std::vector<renderable> lamp, car, tree, drone, cube;
+std::vector<renderable> lamp;
+std::vector<renderable> car;
+std::vector<renderable> tree;
+std::vector<renderable> drone;
+std::vector<renderable> cube;
 
-renderable r_track, r_terrain;
-texture track_texture, terrain_texture;
+renderable r_track;
+texture track_texture;
+renderable r_terrain;
+texture terrain_texture;
+texture white;
 
 //Disegna la scena per il creare lo shadowMapping, l'fbo target deve essere bindato prima
 void DrawDepthScene(race r, shader shader)
@@ -80,14 +88,7 @@ void DrawDepthScene(race r, shader shader)
 	glUseProgram(shader.program);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-	stack.load_identity();
 	stack.push();
-
-	//Terrain
-	stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
-	glm::vec3 c = r.bbox().center();
-	c.y = 0;
-	stack.mult(glm::translate(glm::mat4(1), -c));
 
 	r_terrain.bind();
 	shader.SetMatrix4x4("uModel", stack.m());
@@ -135,14 +136,14 @@ void DrawDepthScene(race r, shader shader)
 	}
 
 	//Cars
-	for (unsigned int k = 0; k < r.cars().size(); ++k) {
+	for (unsigned int k = 0; k < CAR_AMOUNT; ++k) {
 		stack.push();
-		
+
 		stack.mult(glm::scale( r.cars()[k].frame, glm::vec3(0.5f, 0.5f, 0.5f)));
 		DrawModel(car, shader, stack.m());
 		stack.pop();
 	}
-	
+
 	stack.pop();
 	glUseProgram(0);
 }
@@ -196,24 +197,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 		tb[0].mouse_scroll(xoffset, yoffset);
 }
 
-bool change_cam = false;
-glm::mat4 backupview(1.0f);
-
-void change_view(const race& r) 
-{
-    if (change_cam) {
-        backupview = view;
-		glm::vec3 c = r.bbox().center();
-		c.y = 0;
-		view = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cameramen()[1].frame);
-    } else {
-        // Se la matrice non e' vuota vuoldire che voglio ripristinare quella iniziale
-        if (backupview != glm::mat4(1.0f)) {
-            view = backupview;
-        }
-    }
-}
-
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	/* every time any key is presse it switch from controlling trackball tb[0] to tb[1] and viceversa */
 	if (action == GLFW_PRESS)
@@ -224,17 +207,17 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 				watchCameras = true;
 				cameramanFocus = 0;
 				break;
-			
+
 			case GLFW_KEY_1:
 				watchCameras = true;
 				cameramanFocus = 1;
 				break;
-			
+
 			case GLFW_KEY_2:
 				watchCameras = true;
 				cameramanFocus = 2;
 				break;
-			
+
 			case GLFW_KEY_3:
 				watchCameras = true;
 				cameramanFocus = 3;
@@ -293,10 +276,10 @@ int main(int argc, char** argv)
 	//Carichiamo le risorse (shaders, textures, modelli, matrici...) ---------------------------------------------
 	shader basic_shader;
 	basic_shader.create_program("shaders/basic.vert", "shaders/basic.frag");
-	
+
 	shader depth_shader;
 	depth_shader.create_program("shaders/depth.vert", "shaders/depth.frag");
-	
+
 	shader depth_lamps_shader;
 	depth_lamps_shader.create_program("shaders/depth_lamp.geom", "shaders/depth_lamp.vert", "shaders/depth_lamp.frag");
 
@@ -312,12 +295,12 @@ int main(int argc, char** argv)
 	gltfLoader.load_to_renderable("assets/models/drone.glb", drone, bbox_drone);
 	/* carico i cube per testare */
 	gltfLoader.load_to_renderable("assets/models/cube.glb", cube, bbox_cube);
-	
+
 	//Setuppa porjection e view matrix
 	proj = glm::perspective(glm::radians(45.f), (float)1.0f, 0.1f, 100.f);
 	view = glm::lookAt(glm::vec3(0, 1.0f, 1.5f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.0, 1.f, 0.f));
 	//std::cout << "View Matrix:\n" << glm::to_string(view) << std::endl;
-	
+
 	//Setuppa trackball
 	tb[0].reset();
 	tb[0].set_center_radius(glm::vec3(0, 0, 0), 0.2f);
@@ -330,7 +313,7 @@ int main(int argc, char** argv)
 	//add 10 cars
 	for (int i = 0; i < 10; ++i)
 		r.add_car();
-	
+
 	//renderable r_track;
 	r_track.create();
 	game_to_renderable::to_track(r, r_track);
@@ -341,6 +324,8 @@ int main(int argc, char** argv)
 	r_terrain.create();
 	game_to_renderable::to_heightfield(r, r_terrain);
 	terrain_texture = LoadTexture("assets/textures/grass2.png");
+
+	white = LoadTexture("assets/textures/white.png");
 
 	r.start(11, 0, 0, 20);
 	r.update();
@@ -356,69 +341,64 @@ int main(int argc, char** argv)
 	Lproj.sm_size_y = 512;
 	Lproj.distance_light = 0.5;
 	depth_bias = 0;
-	
+
 	ligthDepthFbo.create(Lproj.sm_size_x, Lproj.sm_size_y,true);
-	
-	// SETUP ombre fari macchine
+
+	//Creo i proiettori per le ombre dei fari
 	std::vector<frame_buffer_object> headlightDepthFbos;
 	std::vector<headl_light> hlProjectors;
-	for (int i = 0; i < r.cars().size(); i++) 
+
+	// Per ogni macchina crea un buffer,
+	for (int i = 0; i < CAR_AMOUNT; i++)
 	{
 		// Creazione framebuffer
-		frame_buffer_object fbo;
+		frame_buffer_object fbo = {};
 		fbo.create(1024, 1024, true);
-
 		headlightDepthFbos.push_back(fbo);
 
-		// Creazione proiettore
-		glm::vec3 c = r.bbox().center();
-		c.y = 0;
-		//glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame);
-		//glm::vec4 hlpos = (glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame[3];
-		glm::mat4 hMatPos = glm::translate(r.cars()[i].frame, glm::vec3(0, 3, 0));
-		glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame);
+		//Creo struttura dati di appoggio per la gestione dei fanali
+		headl_light hl = {};
+		hl.sm_size_x = 1024;
+		hl.sm_size_y = 1024;
 
-		headl_light hl;
-		hl.sm_size_x = 128;
-		hl.sm_size_y = 128;
-
-		hl.set(hlview);
 		hlProjectors.push_back(hl);
 	}
 
-	// SETUP ombre lampioni
-	std::vector<frame_buffer_object> lampDepthFbos;
+	//Creo i proiettori per le ombre dei lampioni
 	std::vector<point_light> lampProjectors;
 	for (int i = 0;  i < r.lamps().size(); i++)
 	{
 		stick_object l = r.lamps()[i];
 
-		frame_buffer_object fbo;
-		fbo.create(1024, 1024, true);
-		lampDepthFbos.push_back(fbo);
-		
 		glm::vec3 c = r.bbox().center();
 		c.y = 0;
 		glm::vec4 lPos = (glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * glm::vec4(l.pos + glm::vec3(0, l.height, 0), 1);
-		
+
 		point_light p;
 		p.sm_size_x = 128;
 		p.sm_size_y = 128;
 
 		p.set(glm::vec3(lPos.x, lPos.y, lPos.z));
-		lampProjectors.push_back(p);	
+		lampProjectors.emplace_back(p);
 	}
-              
+
+	std::vector<frame_buffer_object> lampsFbo;
+	lampsFbo.reserve(lampProjectors.size());
+	//frame_buffer_object lampsFbo[18];
+	for (int i = 0;  i < lampProjectors.size(); i++)
+	{
+		lampsFbo[i].create_fromcubemap(lampProjectors[i].sm_size_x, lampProjectors[i].sm_size_y);
+		check_gl_errors(__LINE__, __FILE__, true);
+	}
+
 	//Impostazioni luce della scena
 	glUseProgram(basic_shader.program);
 
 	//Impostazioni di debug
 	basic_shader.SetBool("uSunShadowsEnable", SHADOW_MAPPING);
 	basic_shader.SetBool("uCarHeadlightEnable", CAR_HEADLIGHTS);
-	
-	//--------------IMPOSTAZIONI LUCI SCENA----------------
 
-			// LAMPIONI
+	//Impostazioni luce della scena
 	basic_shader.bind("uLampLigthColor");
 	basic_shader.SetVector3("uLampLigthColor", glm::vec3(1, 0.97, 0.76));
 	basic_shader.bind("uLampC1");
@@ -427,26 +407,19 @@ int main(int argc, char** argv)
 	basic_shader.SetFloat("uLampC2", 0.02f);
 	basic_shader.bind("uLampC3");
 	basic_shader.SetFloat("uLampC3", 750.0f);
-		check_gl_errors(__LINE__, __FILE__);
-	
-	basic_shader.bind("uLampCutOff");
-	basic_shader.SetFloat("uLampCutOff", glm::cos(glm::radians(5.5f))); // Interno
-	basic_shader.bind("uLampOuterCutOff");
-	basic_shader.SetFloat("uLampOuterCutOff", glm::cos(glm::radians(50.f))); // Esterno
+	check_gl_errors(__LINE__, __FILE__);
 
 	//Carica tutti i lampioni in shader
 	basic_shader.bind("uLampsAmount");
 	basic_shader.SetInt("uLampsAmount", r.lamps().size());
-		check_gl_errors(__LINE__, __FILE__);
-	
-	basic_shader.bind("uLampsNAmount");
-	basic_shader.SetInt("uLampsNAmount", r.cars().size() * 2);
+	check_gl_errors(__LINE__, __FILE__);
 
-			// FARI
+	// Imposta il colore dei fari
 	basic_shader.bind("uHeadlightColor");
 	basic_shader.SetVector3("uHeadlightColor", glm::vec3(1.0f, 0.9f, 0.8f)); // Colore bianco caldo
-		check_gl_errors(__LINE__, __FILE__);
+	check_gl_errors(__LINE__, __FILE__);
 
+	// Imposta la attenuazione
 	basic_shader.bind("uHeadlightC1");
 	basic_shader.SetFloat("uHeadlightC1", 0.1f); // Costante
 	basic_shader.bind("uHeadlightC2");
@@ -454,6 +427,7 @@ int main(int argc, char** argv)
 	basic_shader.bind("uHeadlightC3");
 	basic_shader.SetFloat("uHeadlightC3", 100.f); // Quadratica
 
+	// Angoli del cono (cutoff interno ed esterno)
 	basic_shader.bind("uHeadlightCutOff");
 	basic_shader.SetFloat("uHeadlightCutOff", glm::cos(glm::radians(5.5f))); // Interno
 	basic_shader.bind("uHeadlightOuterCutOff");
@@ -461,42 +435,42 @@ int main(int argc, char** argv)
 
 	// Carica tutti i fari in shader (cars x 2)
 	basic_shader.bind("uHeadlightAmount");
-	basic_shader.SetInt("uHeadlightAmount", r.cars().size() * 2);
+	basic_shader.SetInt("uHeadlightAmount", CAR_AMOUNT);
 	// Carica tutte le normali dei fari in shader (cars x 2)
 	basic_shader.bind("uHeadlightNAmount");
-	basic_shader.SetInt("uHeadlightNAmount", r.cars().size() * 2);
+	basic_shader.SetInt("uHeadlightNAmount", CAR_AMOUNT);
 
 	//Impostazioni shadowMapping
 	basic_shader.SetVector2("uShadowMapSize", glm::vec2(Lproj.sm_size_x, Lproj.sm_size_y));
 	basic_shader.SetFloat("uBias", 0.01f);
-		check_gl_errors(__LINE__, __FILE__);
+	check_gl_errors(__LINE__, __FILE__);
 
 	basic_shader.SetVector2("uHeadMapSize", glm::vec2(hlProjectors[0].sm_size_x, hlProjectors[0].sm_size_y));
 
-
-	bool prev_change_cam = change_cam;
-	//std::vector glm::vec3> cameramanPosition
-/*
-*/
-	// --------------------PROJECTIVE TEXTURE---------------------
+	// PROJECTIVE TEXTURE slot 0
+	/*
+	*/
 	texture headlights_texture = LoadTexturePT("assets/textures/light.png");
 	basic_shader.bind("uHeadlightsTexture");
 	BindTexture(basic_shader, "uHeadlightsTexture", headlights_texture, 0);
-	
-		check_gl_errors(__LINE__, __FILE__);
-	float fov = glm::radians(120.0f), aspectRatio = 0.3f, nearPlane = 0.5f, farPlane = 0.7f; 
+
+	float fov = glm::radians(90.0f), aspectRatio = 0.3f, nearPlane = 0.5f, farPlane = 0.7f;
 
 	glm::mat4 projectionMatrix = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
 	basic_shader.bind("uLPProj");
 	basic_shader.SetMatrix4x4("uLPProj", projectionMatrix);
-		check_gl_errors(__LINE__, __FILE__);
+	check_gl_errors(__LINE__, __FILE__);
 
-	
 	glUseProgram(depth_lamps_shader.program);
 	depth_lamps_shader.bind("uFarPlane");
 	depth_lamps_shader.SetFloat("uFarPlane", 25);
 
-	//----------------------CICLO DI RENDERING----------------------
+	//Terrain
+	stack.load_identity();
+	stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
+	glm::vec3 c = r.bbox().center(); c.y = 0;
+	stack.mult(glm::translate(glm::mat4(1), -c));
+
 	while (!glfwWindowShouldClose(window))
 	{
 		/* Render here */
@@ -508,10 +482,17 @@ int main(int argc, char** argv)
 
 		r.update();
 
+		//Aggiorna le matrici dei fanali
+		for (int i = 0; i < CAR_AMOUNT; i++)
+		{
+			glm::mat4 hlMatrix= glm::translate(stack.m() * r.cars()[i].frame, glm::vec3(0, 1.0f, -4.0f));
+			glm::mat4 hlView = glm::inverse(hlMatrix);
+			hlProjectors[i].set(hlView);
+		}
 
 		//Depth Pass --------------------------------------------------------------------------------------
 		if(SHADOW_MAPPING){
-			//Disegno sul framebuffer la depth dal punto di vista della luce 
+			//Disegno sul framebuffer la depth dal punto di vista della luce
 			glBindFramebuffer(GL_FRAMEBUFFER, ligthDepthFbo.id_fbo);
 			glViewport(0, 0, Lproj.sm_size_x, Lproj.sm_size_y);
 
@@ -524,103 +505,72 @@ int main(int argc, char** argv)
 			depth_shader.SetFloat("uPlaneApprox", k_plane_approx);
 			DrawDepthScene(r, depth_shader);
 
-			//HEADLIGHTS SHADOWMAP 
-			for (int i = 0; i < r.cars().size(); i++) {
+			//HEADLIGHTS SHADOWMAP
+			if (CAR_HEADLIGHTS)
+			{
+				for (int i = 0; i < CAR_AMOUNT; i++) {
 
-				// Bindo il buffer corrispondente alla macchina i
-				glBindFramebuffer(GL_FRAMEBUFFER, headlightDepthFbos[i].id_fbo);
-				glViewport(0, 0, 512, 512);
-				glUseProgram(depth_shader.program);
 
-				// Qui c'e' bisogno della LightMatrix da passare allo shader quindi deve gia' essere calcolato come proj * view
-				depth_shader.SetMatrix4x4("uLightMatrix", hlProjectors[i].light_matrix);
-				depth_shader.SetFloat("uPlaneApprox", 0.1);
+					// Bindo il buffer corrispondente alla macchina i
+					glBindFramebuffer(GL_FRAMEBUFFER, headlightDepthFbos[i].id_fbo);
+					glViewport(0, 0, hlProjectors[i].sm_size_x, hlProjectors[i].sm_size_y);
+					glUseProgram(depth_shader.program);
 
-				DrawDepthScene(r, depth_shader);
+					// Qui c'e' bisogno della LightMatrix da passare allo shader quindi deve gia' essere calcolato come proj * view
+					depth_shader.SetMatrix4x4("uLightMatrix", hlProjectors[i].light_matrix);
+					depth_shader.SetFloat("uPlaneApprox", 0.05);
 
+					DrawDepthScene(r, depth_shader);
+
+				}
 			}
-			
-			//LAMPS SHADOWMAP 
-			for (int i = 0; i < r.lamps().size(); i++) {
-				glBindFramebuffer(GL_FRAMEBUFFER, lampDepthFbos[i].id_fbo);
-				glViewport(0, 0, 512, 512);
-				glUseProgram(depth_shader.program);
-
-				depth_shader.SetMatrix4x4("uLightMatrix", lampProjectors[i].light_matrix);
-				depth_shader.SetFloat("uPlaneApprox", 0.1);
-
-				DrawDepthScene(r, depth_shader);
-
-			}
-
-		
 		}
 		check_gl_errors(__LINE__, __FILE__);
+
+
 		//Rendering Pass --------------------------------------------------------------------------------------
 		{
-			
+			stack.push();
+
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 			glUseProgram(basic_shader.program);
 			basic_shader.SetVector3("uSunDirection", r.sunlight_direction());
 			basic_shader.SetVector3("uColor", glm::vec3(1, 1, 1));
 
-			glm::vec3 c = r.bbox().center();
-			c.y = 0;
-
-			glActiveTexture(GL_TEXTURE2);
+			glActiveTexture(GL_TEXTURE0);
     		glBindTexture(GL_TEXTURE_2D, ligthDepthFbo.id_tex);
-			basic_shader.SetInt("uShadowMap", 2);
+			basic_shader.SetInt("uShadowMap", 0);
 			basic_shader.SetMatrix4x4("uLightMatrix", Lproj.light_matrix());
 
 			//Binda le depth map dei fanali
-			for (int i = 0; i < hlProjectors.size(); i++) 
-			{
-				glm::mat4 hMatPos = glm::translate(r.cars()[i].frame, glm::vec3(0, 2, -6));
-				glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * hMatPos);
-				hlProjectors[i].set(hlview);
+			if (CAR_HEADLIGHTS) {
+				for (int i = 0; i < CAR_AMOUNT; i++)
+				{
+					basic_shader.bind("uHeadLightMatrix[" + std::to_string(i) + "]");
+					basic_shader.SetMatrix4x4("uHeadLightMatrix[" + std::to_string(i) + "]", hlProjectors[i].light_matrix);
 
-				basic_shader.bind("uHeadLightMatrix[" + std::to_string(i) + "]");
-				basic_shader.SetMatrix4x4("uHeadLightMatrix[" + std::to_string(i) + "]",  hlProjectors[i].light_matrix);
-
-				basic_shader.bind("uHeadShadowMap[" + std::to_string(i) + "]");
-				BindTextureId(basic_shader, "uHeadShadowMap[" + std::to_string(i) + "]", headlightDepthFbos[i].id_tex, 3+i);
+					basic_shader.bind("uHeadShadowMap[" + std::to_string(i) + "]");
+					BindTextureId(basic_shader, "uHeadShadowMap[" + std::to_string(i) + "]", headlightDepthFbos[i].id_tex, 2+i);
+					//BindTextureId(basic_shader, "uTest", headlightDepthFbos[i].id_tex, 2+i);
+				}
 			}
-			
-			for (int i = 0; i < lampProjectors.size(); i++) 
-			{
-				basic_shader.bind("uLampLightMatrix[" + std::to_string(i) + "]");
-				basic_shader.SetMatrix4x4("uLampLightMatrix[" + std::to_string(i) + "]", lampProjectors[i].light_matrix);
-
-				basic_shader.bind("uLampShadowMap[" + std::to_string(i) + "]");
-				BindTextureId(basic_shader, "uLampShadowMap[" + std::to_string(i) + "]", lampDepthFbos[i].id_tex, 10 + i);
-			}
-
-			
-
 
 			glClearColor(0.3f, 0.3f, 0.3f, 1.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 			if(watchCameras)
 			{
-				
 				view = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cameramen()[cameramanFocus].frame);
 			}
 			else
 			{
 				view = mainCamera * tb[0].matrix();
 			}
+
 			//Aggiorna camera
 			basic_shader.SetMatrix4x4("uProj", proj);
 			basic_shader.SetMatrix4x4("uView", view);
-
-			stack.load_identity();
-			stack.push();
-
-			//Terrain
-			stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
-			stack.mult(glm::translate(glm::mat4(1), -c));
 
 			r_terrain.bind();
 			basic_shader.SetMatrix4x4("uModel", stack.m());
@@ -655,10 +605,11 @@ int main(int argc, char** argv)
 					stack.push();
 					stack.mult(tree[i].transform);
 					glUniformMatrix4fv(basic_shader["uModel"], 1, GL_FALSE, &stack.m()[0][0]);
-					glBindTexture(GL_TEXTURE_2D, tree[i].mater.base_color_texture);
-					
+					BindTexture(basic_shader, "uTexture",white, 1);
+					//glBindTexture(GL_TEXTURE_2D, tree[i].mater.base_color_texture);
+
 					// Imposta il colore se necessario
-					glm::vec3 objectColor = (i == 1) ? glm::vec3(0.45f, 0.17f, 0.02f) : glm::vec3(0.08f, 0.53f, 0.0f); 
+					glm::vec3 objectColor = (i == 1) ? glm::vec3(0.45f, 0.17f, 0.02f) : glm::vec3(0.08f, 0.53f, 0.0f);
 					basic_shader.SetVector3("uColor", objectColor);
 
 					glDrawElements(tree[i]().mode, tree[i]().count, tree[i]().itype, 0);
@@ -687,47 +638,38 @@ int main(int argc, char** argv)
 			}
 /*
 */
-			//Cars		
-			for (unsigned int k = 0; k < r.cars().size(); ++k) {
+			//Cars
+			for (unsigned int k = 0; k < CAR_AMOUNT; ++k) {
 				stack.push();
 				stack.mult(r.cars()[k].frame);
 
 				// Matrice di rotazione
 				glm::mat4 rot = glm::rotate(glm::mat4(1), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-				
-				// Posizione primo faro 
-				glm::vec3 headlightPos1 = glm::vec3(glm::translate(stack.m(), glm::vec3(0.7f, .8f, -4.5f)) * glm::vec4(0, 0, 0, 1)); // Cambiata Y e Z
-				basic_shader.bind("uHeadlights[" + std::to_string(k * 2) + "]");
-				basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2) + "]", headlightPos1);
+				glm::vec3 headlightPos1 = glm::vec3(glm::translate(stack.m(), glm::vec3(0, 1.0f, -4.0f)) * glm::vec4(0, 0, 0, 1)); // Cambiata Y e Z
 
-				// Posizione secondo faro
-				glm::vec3 headlightPos2 = glm::vec3(glm::translate(stack.m(), glm::vec3(-0.7f, .8f, -4.5f)) * glm::vec4(0, 0, 0, 1)); // Cambiata Y e Z
-				basic_shader.bind("uHeadlights[" + std::to_string(k * 2 + 1) + "]");
-				basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2 + 1) + "]", headlightPos2);
+				// Posizione primo faro
+				basic_shader.bind("uHeadlights[" + std::to_string(k) + "]");
+				basic_shader.SetVector3("uHeadlights[" + std::to_string(k) + "]", headlightPos1);
 
-				// Direzione dei fari (corretta per i fari sul cofano)
 				glm::vec3 headlightDir = glm::normalize(glm::vec3(rot * stack.m() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f))); // Ruotata di 180° su Y
-				basic_shader.bind("uHeadlightN[" + std::to_string(k * 2) + "]");
-				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k * 2) + "]", headlightDir);
-
-				basic_shader.bind("uHeadlightN[" + std::to_string(k * 2 + 1) + "]");
-				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k * 2 + 1) + "]", headlightDir);
+				basic_shader.bind("uHeadlightN[" + std::to_string(k) + "]");
+				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k) + "]", headlightDir);
 
 				stack.mult(glm::scale(glm::mat4(1.0f), glm::vec3(0.3f, 0.3f, 0.3f)));
 				stack.mult(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.5f, 0.0f)));
 
-	
 				glm::mat4 viewMatrix = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[k].frame);
-				
 
+				// PROJECTIVE TEXTURES
 				basic_shader.bind("uProjectorPos[" + std::to_string(k) + "]");
 				basic_shader.SetVector3("uProjectorPos[" + std::to_string(k) + "]", headlightPos1);
-				
+
 				basic_shader.bind("uProjectorDir[" + std::to_string(k) + "]");
 				basic_shader.SetVector3("uProjectorDir[" + std::to_string(k) + "]", headlightDir);
 
 				basic_shader.bind("uLPView[" + std::to_string(k) + "]");
 				basic_shader.SetMatrix4x4("uLPView[" + std::to_string(k) + "]", viewMatrix);
+
 
 				DrawModel(car, basic_shader, stack.m());
 				stack.pop();
