@@ -40,7 +40,7 @@
 
 #define SHADOW_MAPPING true
 #define CAR_HEADLIGHTS true
-#define CAR_AMOUNT 1
+#define CAR_AMOUNT 8 //Il max dovrebbe essere dieci
 
 /* creo un array di due oggetti di tipo trackball e curr_tb mi tiene traccia dell'indice attivo tralle due tb*/
 trackball tb[2];
@@ -347,30 +347,20 @@ int main(int argc, char** argv)
 	//Creo i proiettori per le ombre dei fari
 	std::vector<frame_buffer_object> headlightDepthFbos;
 	std::vector<headl_light> hlProjectors;
-	std::vector<glm::mat4> headlightMatrices;
 
 	// Per ogni macchina crea un buffer, 
 	for (int i = 0; i < CAR_AMOUNT; i++)
 	{
 		// Creazione framebuffer
-		frame_buffer_object fbo;
+		frame_buffer_object fbo = {};
 		fbo.create(1024, 1024, true);
-
 		headlightDepthFbos.push_back(fbo);
 
-		// Creazione proiettore
-		glm::vec3 c = r.bbox().center();
-		c.y = 0;
-		//glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame);
-		//glm::vec4 hlpos = (glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * r.cars()[i].frame[3];
-		glm::mat4 hMatPos = glm::translate(r.cars()[i].frame, glm::vec3(0, 3, 0));
-		glm::mat4 hlview = glm::inverse((glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * hMatPos);
-
-		headl_light hl;
+		//Creo struttura dati di appoggio per la gestione dei fanali
+		headl_light hl = {};
 		hl.sm_size_x = 1024;
 		hl.sm_size_y = 1024;
 
-		hl.set(hlview);
 		hlProjectors.push_back(hl);
 	}
 
@@ -445,10 +435,10 @@ int main(int argc, char** argv)
 
 	// Carica tutti i fari in shader (cars x 2)
 	basic_shader.bind("uHeadlightAmount");
-	basic_shader.SetInt("uHeadlightAmount", r.cars().size() * 2);
+	basic_shader.SetInt("uHeadlightAmount", CAR_AMOUNT);
 	// Carica tutte le normali dei fari in shader (cars x 2)
 	basic_shader.bind("uHeadlightNAmount");
-	basic_shader.SetInt("uHeadlightNAmount", r.cars().size() * 2);
+	basic_shader.SetInt("uHeadlightNAmount", CAR_AMOUNT);
 
 	//Impostazioni shadowMapping
 	basic_shader.SetVector2("uShadowMapSize", glm::vec2(Lproj.sm_size_x, Lproj.sm_size_y));
@@ -493,11 +483,11 @@ int main(int argc, char** argv)
 		r.update();
 
 		//Aggiorna le matrici dei fanali
-		for (int i = 0; i < CAR_HEADLIGHTS; i++)
+		for (int i = 0; i < CAR_AMOUNT; i++)
 		{
-			glm::mat4 hMatPos = glm::translate(stack.m() * r.cars()[i].frame, glm::vec3(0, 1.0f, -4.0f));
-			glm::mat4 hlview = glm::inverse(hMatPos);
-			hlProjectors[i].set(hlview );
+			glm::mat4 hlMatrix= glm::translate(stack.m() * r.cars()[i].frame, glm::vec3(0, 1.0f, -4.0f));
+			glm::mat4 hlView = glm::inverse(hlMatrix);
+			hlProjectors[i].set(hlView);
 		}
 
 		//Depth Pass --------------------------------------------------------------------------------------
@@ -561,8 +551,8 @@ int main(int argc, char** argv)
 					basic_shader.SetMatrix4x4("uHeadLightMatrix[" + std::to_string(i) + "]", hlProjectors[i].light_matrix);
 
 					basic_shader.bind("uHeadShadowMap[" + std::to_string(i) + "]");
-					//BindTextureId(basic_shader, "uHeadShadowMap[" + std::to_string(i) + "]", headlightDepthFbos[i].id_tex, 2+i);
-					BindTextureId(basic_shader, "uTest", headlightDepthFbos[i].id_tex, 2+i);
+					BindTextureId(basic_shader, "uHeadShadowMap[" + std::to_string(i) + "]", headlightDepthFbos[i].id_tex, 2+i);
+					//BindTextureId(basic_shader, "uTest", headlightDepthFbos[i].id_tex, 2+i);
 				}
 			}
 
@@ -658,12 +648,12 @@ int main(int argc, char** argv)
 				
 				// Posizione primo faro 
 				glm::vec3 headlightPos1 = glm::vec3(glm::translate(stack.m(), glm::vec3(0, 1.0f, -4.0f)) * glm::vec4(0, 0, 0, 1)); // Cambiata Y e Z
-				basic_shader.bind("uHeadlights[" + std::to_string(k * 2) + "]");
-				basic_shader.SetVector3("uHeadlights[" + std::to_string(k * 2) + "]", headlightPos1);
+				basic_shader.bind("uHeadlights[" + std::to_string(k) + "]");
+				basic_shader.SetVector3("uHeadlights[" + std::to_string(k) + "]", headlightPos1);
 
 				glm::vec3 headlightDir = glm::normalize(glm::vec3(rot * stack.m() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f))); // Ruotata di 180° su Y
-				basic_shader.bind("uHeadlightN[" + std::to_string(k * 2) + "]");
-				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k * 2) + "]", headlightDir);
+				basic_shader.bind("uHeadlightN[" + std::to_string(k) + "]");
+				basic_shader.SetVector3("uHeadlightN[" + std::to_string(k) + "]", headlightDir);
 
 
 				// Posizione secondo faro

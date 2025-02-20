@@ -15,7 +15,7 @@ out vec3 vNormal;
 out vec2 vTexCoord;
 out vec3 vColor;
 
-out vec4[MAX_HEADL_AMOUNT] wCoordHeadLS;
+out vec4 wCoordHeadLS[MAX_HEADL_AMOUNT];
 
 uniform mat4 uProj;
 uniform mat4 uView;
@@ -23,7 +23,7 @@ uniform mat4 uModel;
 uniform mat4 uLightMatrix;
 
 uniform int uHeadlightAmount;
-uniform mat4[MAX_HEADL_AMOUNT] uHeadLightMatrix;
+uniform mat4 uHeadLightMatrix[MAX_HEADL_AMOUNT] ;
 
 void main() {
     vPos = (uView * uModel * vec4(aPosition, 1.0)).xyz;

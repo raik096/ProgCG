@@ -10,7 +10,7 @@ in vec3 vNormal;
 in vec2 vTexCoord;
 in vec3 vColor;
 in vec4 vProjTexCoord[10];
-in vec4[MAX_HEADL_AMOUNT] wCoordHeadLS;
+in vec4 wCoordHeadLS[MAX_HEADL_AMOUNT];
 
 uniform mat4 uModel;
 uniform vec3 uColor;
@@ -56,7 +56,7 @@ uniform float uHeadlightC1, uHeadlightC2, uHeadlightC3;
 uniform float uHeadlightCutOff, uHeadlightOuterCutOff;
 
 //Spotlight shadows
-uniform sampler2D[MAX_HEADL_AMOUNT] uHeadShadowMap;
+uniform sampler2D uHeadShadowMap[MAX_HEADL_AMOUNT] ;
 uniform vec2 uHeadMapSize;
 
 vec3 LambertDiffuse(vec3 L, vec3 N)
@@ -124,7 +124,7 @@ float SpotShadowCalculation(int spotId, vec4 CoordLS)
     {
         for(int x = -sampleRadius; x <= sampleRadius; x++)
         {
-            float closestDepth = texture(uTest, projCoords.xy + vec2(x, y) * pixelSize).r;
+            float closestDepth = texture(uHeadShadowMap[spotId], projCoords.xy + vec2(x, y) * pixelSize).r;
             if(currentDepth > closestDepth + bias)
             lit += 1.0f;
         }
@@ -210,9 +210,9 @@ void main(void)
 
     // Calcola luce dei fari (spotlights)
     vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal));
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < uHeadlightAmount; i++)
     {
-        result += color * CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal))* SpotShadowCalculation(0, wCoordHeadLS[0]);
+        result += color * CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal)) * SpotShadowCalculation(i, wCoordHeadLS[i]);
         //shadow = //max(SpotShadowCalculation(i, wCoordHeadLS[i]), shadow);
     }
 
