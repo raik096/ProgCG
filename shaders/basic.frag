@@ -1,5 +1,4 @@
 #version 460 core
-
 out vec4 FragColor;
 
 in vec3 vPos;
@@ -13,6 +12,7 @@ in vec4 vProjTexCoord[10];
 uniform mat4 uModel;
 uniform vec3 uColor;
 uniform sampler2D uTexture;
+uniform sampler2D uSpotTexture;
 
 uniform vec3 uSpotPos;
 uniform vec4 uSpotDir;
@@ -58,6 +58,17 @@ float SpotShadowCalculation(vec4 CoordLS)
     return  1.0 - lit;
 }
 
+vec3 CalcSpotProj(vec4 CoordLS)
+{    //Proietto le coordinate in lightSpace sullo schermo in seguito le uso per campionare la texture
+    vec2 projCoords = (CoordLS / CoordLS.w).xy * 0.5+0.5;
+    vec4 c = texture2D(uSpotTexture, projCoords);
+
+    //Se la faccia del modello non e' rivolta verso la luce non deve ricevere la proiezione della texture
+    vec3 cc =  vec3(max(0.0,dot(normalize(uSpotDir.xyz),normalize(vNormal)))) + c.xyz*c.w;
+
+    return cc;
+}
+
 vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor)
 {
     float outerCutoff = 0.95;
@@ -91,7 +102,7 @@ void main(void)
     vec3 result = LambertDiffuse(normalize(vec3(1, 1, 1)), normalize(vNormal));
 
     //Influenza della spotLight
-    result *= CalcSpotLight(uSpotPos, uSpotDir.xyz, vec3(1, 1, 1));
+    result *= CalcSpotLight(uSpotPos, uSpotDir.xyz, vec3(1, 1, 1)) * CalcSpotProj(wCoordLS);
 
     //Il frammento e' in ombra/coperto da qualche altro oggetto?
     result *= SpotShadowCalculation(wCoordLS);

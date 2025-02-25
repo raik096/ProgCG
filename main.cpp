@@ -196,6 +196,8 @@ int main(int argc, char** argv)
 
 	check_gl_errors(__LINE__, __FILE__);
 
+	texture batman = LoadTexture("assets/textures/batman.png");
+
 	glClearColor(0.3f, 0.3f, 0.3f, 1.f);
 	while (!glfwWindowShouldClose(window))
 	{
@@ -259,6 +261,8 @@ int main(int argc, char** argv)
 			glBindTexture(GL_TEXTURE_2D, spotDepthFbo.id_tex);
 			basic_shader.SetInt("uSpotShadowMap", 0);
 			basic_shader.SetMatrix4x4("uSpotLightMatrix", lightMat);
+
+			BindTexture(basic_shader, "uSpotTexture", batman, 2);
 
 			//Disegna cose qui
 			stack.push();
