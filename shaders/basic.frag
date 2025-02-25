@@ -161,6 +161,18 @@ vec3 CalcSpotLight(vec3 lightPos, vec3 lightDir, vec3 lightColor, vec3 N)
     return vec3(0.0); // Fuori dal cono, niente luce
 }
 
+vec3 CalcSpotProj(int spotId, vec4 CoordLS)
+{    //Proietto le coordinate in lightSpace sullo schermo in seguito le uso per campionare la texture
+    vec2 projCoords = (CoordLS / CoordLS.w).xy * 0.5+0.5;
+    vec4 c = texture2D(uHeadlightsTexture, projCoords);
+
+    vec3 lightDirection = normalize(uHeadlights[spotId] - wPos);
+    //Se la faccia del modello non e' rivolta verso la luce non deve ricevere la proiezione della texture
+    vec3 cc =  vec3(max(0.0,dot(normalize(lightDirection),normalize(vNormal)))) + c.xyz*c.w;
+
+    return cc;
+}
+
 // Funzione per calcolare l'intensità dei fari
 float CalculateHeadlightIntensity(vec4 projCoord, vec3 wPos, vec3 lightPos, vec3 lightDir, sampler2D uHeadlightsTexture, float maxDistance) 
 {
@@ -196,8 +208,9 @@ void main(void)
     //float shadow = 0;ShadowCalculation(wCoordLS);
 
     // Calcola luce dei lampioni
-    //for (int i = 0; i < uLampsAmount; i++)
-    //    result += CalcPointLight(uLampLights[i], normalize(vNormal));
+    vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal));
+    for (int i = 0; i < uLampsAmount; i++)
+        result += color * CalcPointLight(uLampLights[i], normalize(vNormal));
 
     /*
     float maxDistance = 0.3;
@@ -209,11 +222,9 @@ void main(void)
     */
 
     // Calcola luce dei fari (spotlights)
-    vec3 result = LambertDiffuse(uSunDirection, normalize(vNormal));
     for (int i = 0; i < uHeadlightAmount; i++)
     {
-        result += color * CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal)) * SpotShadowCalculation(i, wCoordHeadLS[i]);
-        //shadow = //max(SpotShadowCalculation(i, wCoordHeadLS[i]), shadow);
+        result += color * CalcSpotProj(i, wCoordHeadLS[i]) * CalcSpotLight(uHeadlights[i], uHeadlightN[i], uHeadlightColor, normalize(vNormal)) * SpotShadowCalculation(i, wCoordHeadLS[i]);
     }
 
     FragColor = vec4(result, 1.0);

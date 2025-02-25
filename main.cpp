@@ -40,7 +40,7 @@
 
 #define SHADOW_MAPPING true
 #define CAR_HEADLIGHTS true
-#define CAR_AMOUNT 8 //Il max dovrebbe essere dieci
+#define CAR_AMOUNT 2 //Il max dovrebbe essere dieci
 
 /* creo un array di due oggetti di tipo trackball e curr_tb mi tiene traccia dell'indice attivo tralle due tb*/
 trackball tb[2];
@@ -364,32 +364,6 @@ int main(int argc, char** argv)
 		hlProjectors.push_back(hl);
 	}
 
-	//Creo i proiettori per le ombre dei lampioni
-	std::vector<point_light> lampProjectors;
-	for (int i = 0;  i < r.lamps().size(); i++)
-	{
-		stick_object l = r.lamps()[i];
-		
-		glm::vec3 c = r.bbox().center();
-		c.y = 0;
-		glm::vec4 lPos = (glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())) * glm::translate(glm::mat4(1), -c)) * glm::vec4(l.pos + glm::vec3(0, l.height, 0), 1);
-		
-		point_light p;
-		p.sm_size_x = 128;
-		p.sm_size_y = 128;
-
-		p.set(glm::vec3(lPos.x, lPos.y, lPos.z));
-		lampProjectors.emplace_back(p);	
-	}
-
-	std::vector<frame_buffer_object> lampsFbo;
-	lampsFbo.reserve(lampProjectors.size());
-	//frame_buffer_object lampsFbo[18];
-	for (int i = 0;  i < lampProjectors.size(); i++)
-	{
-		lampsFbo[i].create_fromcubemap(lampProjectors[i].sm_size_x, lampProjectors[i].sm_size_y);
-		check_gl_errors(__LINE__, __FILE__, true);
-	}
 
 	//Impostazioni luce della scena
 	glUseProgram(basic_shader.program);
@@ -404,7 +378,7 @@ int main(int argc, char** argv)
 	basic_shader.bind("uLampC1");
 	basic_shader.SetFloat("uLampC1", 0.1f);
 	basic_shader.bind("uLampC2");
-	basic_shader.SetFloat("uLampC2", 0.02f);
+	basic_shader.SetFloat("uLampC2", 2.0f);
 	basic_shader.bind("uLampC3");
 	basic_shader.SetFloat("uLampC3", 750.0f);
 	check_gl_errors(__LINE__, __FILE__);
@@ -448,11 +422,11 @@ int main(int argc, char** argv)
 	basic_shader.SetVector2("uHeadMapSize", glm::vec2(hlProjectors[0].sm_size_x, hlProjectors[0].sm_size_y));
 
 	// PROJECTIVE TEXTURE slot 0
-	/*
-	texture headlights_texture = LoadTexturePT("assets/textures/light.png");
-	basic_shader.bind("uHeadlightsTexture");
-	BindTexture(basic_shader, "uHeadlightsTexture", headlights_texture, 0);
 
+	texture headlights_texture = LoadTexturePT("assets/textures/batman.png");
+	basic_shader.bind("uHeadlightsTexture");
+	BindTexture(basic_shader, "uHeadlightsTexture", headlights_texture, 2);
+	/*
 	float fov = glm::radians(120.0f), aspectRatio = 0.3f, nearPlane = 0.5f, farPlane = 0.7f;
 
 	glm::mat4 projectionMatrix = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
@@ -470,6 +444,35 @@ int main(int argc, char** argv)
 	stack.mult(glm::scale(glm::mat4(1), glm::vec3(1/r.bbox().diagonal())));
 	glm::vec3 c = r.bbox().center(); c.y = 0;
 	stack.mult(glm::translate(glm::mat4(1), -c));
+
+	//Creo i proiettori per le ombre dei lampioni
+	/*
+	std::vector<point_light> lampProjectors;
+	for (int i = 0;  i < r.lamps().size(); i++)
+	{
+		stick_object l = r.lamps()[i];
+
+		glm::vec3 c = r.bbox().center();
+		c.y = 0;
+		glm::vec4 lPos = stack.m() * glm::vec4(l.pos + glm::vec3(0, l.height, 0), 1);
+
+		point_light p;
+		p.sm_size_x = 128;
+		p.sm_size_y = 128;
+
+		p.set(glm::vec3(lPos.x, lPos.y, lPos.z));
+		lampProjectors.emplace_back(p);
+	}
+
+	std::vector<frame_buffer_object> lampsFbo;
+	lampsFbo.reserve(lampProjectors.size());
+	//frame_buffer_object lampsFbo[18];
+	for (int i = 0;  i < lampProjectors.size(); i++)
+	{
+		lampsFbo[i].create_fromcubemap(lampProjectors[i].sm_size_x, lampProjectors[i].sm_size_y);
+		check_gl_errors(__LINE__, __FILE__, true);
+	}
+	*/
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -551,7 +554,7 @@ int main(int argc, char** argv)
 					basic_shader.SetMatrix4x4("uHeadLightMatrix[" + std::to_string(i) + "]", hlProjectors[i].light_matrix);
 
 					basic_shader.bind("uHeadShadowMap[" + std::to_string(i) + "]");
-					BindTextureId(basic_shader, "uHeadShadowMap[" + std::to_string(i) + "]", headlightDepthFbos[i].id_tex, 2+i);
+					BindTextureId(basic_shader, "uHeadShadowMap[" + std::to_string(i) + "]", headlightDepthFbos[i].id_tex, 3+i);
 					//BindTextureId(basic_shader, "uTest", headlightDepthFbos[i].id_tex, 2+i);
 				}
 			}
